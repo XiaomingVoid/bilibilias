@@ -32,3 +32,4 @@ include(":core:datastore")
 // include(":core:ffmpeg") 暂时废除
 include(":core:data")
 include(":core:network")
+include(":core:datastore-proto")

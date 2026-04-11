@@ -617,7 +617,6 @@ class NewDownloadManager(
         return when (mode) {
             DownloadMode.AUDIO_VIDEO,
             DownloadMode.VIDEO_ONLY -> mediaContainerConfig.videoContainer.extension
-
             DownloadMode.AUDIO_ONLY -> mediaContainerConfig.audioContainer.extension
         }
     }

@@ -46,6 +46,8 @@ import org.koin.android.ext.android.inject
 import androidx.compose.runtime.collectAsState
 import com.baidu.mobstat.StatService
 import com.imcys.bilibilias.common.data.CommonBuildConfig
+import com.imcys.bilibilias.common.event.restoreBackStack
+import com.imcys.bilibilias.common.event.restoreBackStackEventFlow
 import com.imcys.bilibilias.common.utils.analyticsSafe
 import com.imcys.bilibilias.common.utils.baiduAnalyticsSafe
 import com.imcys.bilibilias.ui.weight.ASTextButton
@@ -169,6 +171,8 @@ class MainActivity : ComponentActivity() {
 
             Intent.ACTION_MAIN -> {
                 // 正常启动
+                // 检查
+                restoreBackStack()
             }
         }
     }

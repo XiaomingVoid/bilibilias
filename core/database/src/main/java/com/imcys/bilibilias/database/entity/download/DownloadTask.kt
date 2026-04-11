@@ -1,12 +1,12 @@
 package com.imcys.bilibilias.database.entity.download
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Ignore
-import androidx.room.Index
-import androidx.room.PrimaryKey
-import androidx.room.TypeConverters
+import androidx.room3.ColumnInfo
+import androidx.room3.Entity
+import androidx.room3.ForeignKey
+import androidx.room3.Ignore
+import androidx.room3.Index
+import androidx.room3.PrimaryKey
+import androidx.room3.TypeConverters
 import com.imcys.bilibilias.database.converter.DateConverter
 import com.imcys.bilibilias.database.converter.download.DownloadModeConverter
 import com.imcys.bilibilias.database.converter.download.DownloadPlatformConverter

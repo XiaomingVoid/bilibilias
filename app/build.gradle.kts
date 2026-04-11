@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.firebase.perf)
     alias(libs.plugins.kotlin.plugin.serialization)
     alias { libs.plugins.kotlin.parcelize }
+    alias(libs.plugins.ksp)
 }
 val enabledPlayAppMode: String by project
 val enabledAnalytics: String by project
@@ -18,7 +19,6 @@ android {
     namespace = "com.imcys.bilibilias"
 
     defaultConfig {
-        targetSdk = 36
         applicationId = "com.imcys.bilibilias"
         versionCode = 316
         versionName = "3.1.6"
@@ -167,6 +167,11 @@ dependencies {
     // Shizuku
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
+
+    // Native MCP
+    implementation(libs.appfunctions)
+    implementation(libs.appfunctions.service)
+    ksp(libs.appfunctions.compiler)
 
     // xposed
     //    compileOnly(libs.xposed.api)

@@ -18,22 +18,25 @@ import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
-import androidx.navigation3.runtime.NavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.runtime.serialization.NavBackStackSerializer
+import androidx.navigation3.runtime.serialization.NavKeySerializer
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import com.imcys.bilibilias.common.event.analysisHandleChannel
 import com.imcys.bilibilias.common.event.playVoucherErrorChannel
 import com.imcys.bilibilias.common.event.requestFrequentHandleChannel
+import com.imcys.bilibilias.common.event.restoreBackStackEventFlow
+import com.imcys.bilibilias.common.event.saveBackStackChannel
+import com.imcys.bilibilias.data.repository.AppSettingsRepository
 import com.imcys.bilibilias.ui.analysis.AnalysisScreen
 import com.imcys.bilibilias.ui.analysis.AnalysisViewModel
 import com.imcys.bilibilias.ui.analysis.navigation.AnalysisRoute
@@ -82,7 +85,6 @@ import com.imcys.bilibilias.ui.tools.frame.FrameExtractorScreen
 import com.imcys.bilibilias.ui.tools.parser.WebParserRoute
 import com.imcys.bilibilias.ui.tools.parser.WebParserScreen
 import com.imcys.bilibilias.ui.user.UserScreen
-import com.imcys.bilibilias.ui.user.UserViewModel
 import com.imcys.bilibilias.ui.user.bangumifollow.BangumiFollowRoute
 import com.imcys.bilibilias.ui.user.bangumifollow.BangumiFollowScreen
 import com.imcys.bilibilias.ui.user.folder.UserFolderRoute
@@ -95,7 +97,10 @@ import com.imcys.bilibilias.ui.user.like.LikeVideoScreen
 import com.imcys.bilibilias.ui.user.navigation.UserRoute
 import com.imcys.bilibilias.ui.user.work.WorkListRoute
 import com.imcys.bilibilias.ui.user.work.WorkListScreen
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.Json
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * BILIBILAIS导航显示组件
@@ -105,7 +110,10 @@ import org.koin.androidx.compose.koinViewModel
 fun BILIBILAISNavDisplay() {
     val backStack = rememberNavBackStack(HomeRoute())
     val listDetailStrategy = rememberListDetailSceneStrategy<NavKey>()
-
+    val navBackStackSerializer =
+        remember { NavBackStackSerializer(elementSerializer = NavKeySerializer()) }
+    val json = koinInject<Json>()
+    val settingsRepository = koinInject<AppSettingsRepository>()
     // 监听解析事件
     LaunchedEffect(Unit) {
         analysisHandleChannel.collect {
@@ -125,6 +133,27 @@ fun BILIBILAISNavDisplay() {
             backStack.addWithReuse(RequestFrequentRoute(it.url))
         }
     }
+
+    LaunchedEffect(Unit) {
+        saveBackStackChannel.collect {
+            val saveStr = navBackStackSerializer.saveBackStack(json, backStack)
+            settingsRepository.updateNavBackStack(saveStr)
+            it.onSaveFinish.invoke()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        restoreBackStackEventFlow.collect {
+            val setting = settingsRepository.appSettingsFlow.first()
+            if (setting.navBackStack.isNotEmpty()) {
+                val stack = navBackStackSerializer.loadBackStack(json, setting.navBackStack)
+                backStack.clear()
+                backStack.addAll(stack)
+                settingsRepository.updateNavBackStack("")
+            }
+        }
+    }
+
 
     fun createPopTransitionSpec() = ContentTransform(
         // 返回导航：上一个页面进入 - 从放大状态恢复
@@ -519,7 +548,22 @@ fun <T : NavKey> NavBackStack<T>.removeLastOrNullSafe() {
     }
 }
 
-fun <T : NavKey> myDecorator(): NavEntryDecorator<T> =
-    NavEntryDecorator(onPop = { contentKey -> }) { entry ->
-        entry.Content()
-    }
+private fun NavBackStackSerializer<NavKey>.saveBackStack(
+    json: Json,
+    backStack: NavBackStack<NavKey>
+): String {
+    return json.encodeToString(
+        this,
+        backStack
+    )
+}
+
+private fun NavBackStackSerializer<NavKey>.loadBackStack(
+    json: Json,
+    backStackStr: String
+): NavBackStack<NavKey> {
+    return json.decodeFromString(
+        this,
+        backStackStr
+    )
+}

@@ -13,6 +13,7 @@ import com.imcys.bilibilias.network.ApiStatus
 import com.imcys.bilibilias.network.FlowNetWorkResult
 import com.imcys.bilibilias.network.NetWorkResult
 import kotlinx.coroutines.flow.last
+import kotlin.system.exitProcess
 
 fun Context.openLink(url: String) {
     if (url.isEmpty()) return
@@ -83,4 +84,16 @@ inline fun baiduAnalyticsSafe(action: () -> Unit) {
 
 fun isEnabledAnalytics(): Boolean {
     return BuildConfig.ENABLED_ANALYTICS
+}
+
+
+
+fun restartApp(context: Context) {
+    val packageManager = context.packageManager
+    val intent = packageManager.getLaunchIntentForPackage(context.packageName)
+    val mainIntent = Intent.makeRestartActivityTask(intent!!.component)
+    // 清除任务栈
+    mainIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+    context.startActivity(mainIntent)
+    exitProcess(0)
 }

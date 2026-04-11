@@ -1,8 +1,15 @@
 package com.imcys.bilibilias.common.event
 
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
 import com.imcys.bilibilias.common.base.crash.AppException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 object LoginError
 
@@ -66,4 +73,31 @@ val updateAccountChannel = _updateAccountChannel.receiveAsFlow()
 
 fun sendUpdateAccountEvent() {
     _updateAccountChannel.trySend(UpdateAccountChannel)
+}
+
+// 持久化回退栈事件
+data class SaveBackStackEvent(
+    val onSaveFinish: () -> Unit
+)
+
+private val _saveBackStackChannel = Channel<SaveBackStackEvent>(Channel.UNLIMITED);
+val saveBackStackChannel = _saveBackStackChannel.receiveAsFlow()
+
+suspend fun sendSaveBackStackChannel(): Boolean {
+    val deferred = CompletableDeferred<Unit>()
+    val sent = _saveBackStackChannel.trySend(SaveBackStackEvent {
+        deferred.complete(Unit)
+    }).isSuccess
+    if (!sent) return false
+    deferred.await()
+    return true
+}
+
+
+data object RestoreBackStackInfo
+private val restoreBackStackEventChannel = Channel<RestoreBackStackInfo>(Channel.UNLIMITED)
+val restoreBackStackEventFlow = restoreBackStackEventChannel.receiveAsFlow()
+
+fun restoreBackStack(restoreBackStackInfo: RestoreBackStackInfo = RestoreBackStackInfo) {
+    restoreBackStackEventChannel.trySend(restoreBackStackInfo)
 }

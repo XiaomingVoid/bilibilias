@@ -97,7 +97,7 @@ class VideoInfoFetcher(
 
             is BILIVideoPlayerInfo -> result.dash ?: result.durls?.firstOrNull {
                 it.quality == downloadViewInfo.selectVideoQualityId
-            }?.durl?.first() ?: result.durls?.first()?.durl?.first()
+            }?.durl?.first() ?: result.durls?.first()?.durl?.first() ?: result.durl?.first()
 
             else -> null
         }

@@ -1,6 +1,6 @@
 package com.imcys.bilibilias.database.converter
 
-import androidx.room.TypeConverter
+import androidx.room3.TypeConverter
 import com.imcys.bilibilias.database.entity.ASSharedCookieEncoding
 import com.imcys.bilibilias.database.entity.LoginPlatform
 import java.util.Date
