@@ -112,7 +112,6 @@ fun QRCodeLoginScreen(
     val qrCodeInfoState by vm.qrCodeInfoState.collectAsStateWithLifecycle()
     val qrCodeScanInfoState by vm.qrCodeScanInfoState.collectAsStateWithLifecycle()
     val loginUserInfoState by vm.loginUserInfoState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val windowWidthSizeClass = rememberWidthSizeClass()
     var agreePrivacyPolicy by rememberSaveable { mutableStateOf(false) }
 

@@ -25,6 +25,7 @@ dependencies {
     api(libs.ktor.client.content.negotiation)
     api(libs.ktor.serialization.kotlinx.json)
     api(libs.ktor.serialization.kotlinx.protobuf)
+    api(libs.ksoup.network)
     api(libs.ktor.client.logging)
 
 }

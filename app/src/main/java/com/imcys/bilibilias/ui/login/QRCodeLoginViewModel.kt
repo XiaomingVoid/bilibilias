@@ -266,10 +266,8 @@ class QRCodeLoginViewModel(
                     put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                 }
                 contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-                null // 已经保存到文件系统
             } catch (e: Exception) {
                 e.printStackTrace()
-                null
             }
         }
         sendToastEventOnBlocking("保存成功")

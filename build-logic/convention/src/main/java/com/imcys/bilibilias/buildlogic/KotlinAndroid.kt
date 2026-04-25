@@ -108,5 +108,6 @@ private inline fun <reified T : KotlinBaseExtension> Project.configureKotlin() =
         )
         freeCompilerArgs.add("-XXLanguage:+ContextParameters")
         freeCompilerArgs.add("-Xexplicit-backing-fields")
+        freeCompilerArgs.add("-Xreturn-value-checker=check")
     }
 }
