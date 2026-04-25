@@ -91,7 +91,9 @@ fun LikeVideoContent(
                 modifier = Modifier.animateItem(),
                 bvId = item.bvid,
                 title = item.title,
-                pic = "${item.pic.toHttps()}@672w_378h_1c",
+                pic = "${item.pic.toHttps()
+                    
+                }@672w_378h_1c",
                 upName = item.owner.name,
                 mid = item.owner.mid,
                 view = item.stat.view,

@@ -389,7 +389,7 @@ private fun VideoCard(item: BILISpaceArchiveModel.Item?, onClick: () -> Unit = {
             shape = CardDefaults.shape
         ) {
             ASAsyncImage(
-                "${item?.pic?.toHttps()}@672w_378h_1c",
+                "${item?.pic?.toHttps()?.width(672)?.height(372)?.crop()}",
                 modifier = Modifier.fillMaxSize(),
                 contentDescription = "视频封面"
             )

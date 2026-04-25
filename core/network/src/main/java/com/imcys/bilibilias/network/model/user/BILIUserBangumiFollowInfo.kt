@@ -1,6 +1,7 @@
 package com.imcys.bilibilias.network.model.user
 
 
+import com.imcys.bilibilias.common.data.value.BiliImageURL
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -33,7 +34,7 @@ data class BILIUserBangumiFollowInfo(
         @SerialName("can_watch")
         val canWatch: Long,
         @SerialName("cover")
-        val cover: String,
+        val cover: BiliImageURL,
         @SerialName("evaluate")
         val evaluate: String,
         @SerialName("first_ep")

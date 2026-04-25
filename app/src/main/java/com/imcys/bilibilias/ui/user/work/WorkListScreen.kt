@@ -137,8 +137,12 @@ private fun WorkList(
         ) {
             ASCardTextField(
                 hint = "搜索投稿",
-                autoFocus = false, value = uiState.query, onValueChange = onUpdateKeyword,
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), modifier = Modifier.animateItem())
+                autoFocus = false,
+                value = uiState.query,
+                onValueChange = onUpdateKeyword,
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                modifier = Modifier.animateItem()
+            )
         }
 
         items(uiState.items, key = { it.bvid }) {
@@ -146,7 +150,7 @@ private fun WorkList(
                 modifier = Modifier.animateItem(),
                 bvId = it.bvid,
                 title = it.title,
-                pic = "${it.pic.toHttps()}@672w_378h_1c",
+                pic = it.pic.toHttps().width(672).height(378).crop().toString(),
                 view = it.play,
                 danmu = it.danmu,
             )

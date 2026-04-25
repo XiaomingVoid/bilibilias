@@ -1,5 +1,6 @@
 package com.imcys.bilibilias.data.repository
 
+import com.imcys.bilibilias.common.data.value.BiliImageURL
 import com.imcys.bilibilias.data.model.BILISpaceArchiveModel
 import com.imcys.bilibilias.data.model.BILIUserStatModel
 import com.imcys.bilibilias.data.model.user.BILIUserHistoryPlayModel
@@ -87,7 +88,7 @@ class UserInfoRepository(
                                     play = it.play,
                                     description = it.description,
                                     seasonId = it.seasonId,
-                                    pic = it.pic,
+                                    pic = BiliImageURL(it.pic),
                                     attribute = it.attribute,
                                     length = it.length,
                                     comment = it.comment,
@@ -119,7 +120,7 @@ class UserInfoRepository(
                                     play = it.play,
                                     description = it.description,
                                     seasonId = it.seasonId,
-                                    pic = it.pic,
+                                    pic = BiliImageURL(it.pic),
                                     attribute = it.attribute,
                                     length = it.length,
                                     comment = it.comment,
@@ -179,7 +180,7 @@ class UserInfoRepository(
                 BILIUserHistoryPlayModel(
                     longTitle = info.longTitle,
                     title = info.title,
-                    cover = info.cover,
+                    cover = BiliImageURL(info.cover),
                     history = info.history,
                     showTitle = info.showTitle,
                     duration = info.duration,
