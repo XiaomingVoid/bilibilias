@@ -1,5 +1,7 @@
 package com.imcys.bilibilias.weight
 
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -25,6 +27,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -39,6 +42,7 @@ fun ASCollapsingToolbar(
     val maxHeightPx = with(density) { maxHeight.toPx() }
     val minHeightPx = with(density) { minHeight.toPx() }
     var toolbarHeightPx by remember { mutableFloatStateOf(maxHeightPx) }
+    val toolbarContent by rememberUpdatedState(toolbar)
 
     val currentOnChangeProgress by rememberUpdatedState(onChangeProgress)
 
@@ -52,6 +56,9 @@ fun ASCollapsingToolbar(
 
     val nestedScrollConnection = remember(minHeightPx) {
         object : NestedScrollConnection {
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                return super.onPreFling(available)
+            }
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
                 if (delta < 0) {
@@ -92,7 +99,7 @@ fun ASCollapsingToolbar(
                 .verticalScroll(rememberScrollState())
                 .height(with(density) { toolbarHeightPx.toDp() })
             ,
-            content = toolbar
+            content = toolbarContent
         )
         content(nestedScrollConnection)
     }
