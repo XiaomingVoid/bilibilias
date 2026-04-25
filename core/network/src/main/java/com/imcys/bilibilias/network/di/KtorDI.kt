@@ -176,6 +176,36 @@ val netWorkModule = module {
         }
     }
 
+    // Bgm的网络请求不装任何业务插件
+    single(qualifier = named("BgmHttpClient")) {
+        HttpClient(CIO) {
+            BrowserUserAgent()
+            install(HttpTimeout) {
+                requestTimeoutMillis = 120_000
+                connectTimeoutMillis = 120_000
+                socketTimeoutMillis = 120_000
+            }
+            install(HttpRequestRetry) {
+                retryOnServerErrors(maxRetries = 3)
+                exponentialDelay()
+            }
+            install(ContentNegotiation) {
+                json(get())
+            }
+            if (BuildConfig.DEBUG){
+                install(Logging) {
+                    logger = object : Logger {
+                        override fun log(message: String) {
+                            Log.d("BgmKtor", message)
+                        }
+                    }
+                    level = LogLevel.HEADERS
+                }
+            }
+
+        }
+    }
+
 
     // WebAPI
     single {
@@ -191,6 +221,6 @@ val netWorkModule = module {
     }
     // BgmAPI
     single {
-        BgmAPIService(get())
+        BgmAPIService(get(qualifier = named("BgmHttpClient")))
     }
 }

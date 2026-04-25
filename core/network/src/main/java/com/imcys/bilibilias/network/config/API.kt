@@ -122,10 +122,14 @@ object API {
         const val API_BASE_URL = "https://api.bgm.tv/"
         const val CALENDER = API_BASE_URL + "calendar"
 
+        const val GET_EPISODES= API_BASE_URL + "v0/episodes"
+
+
         object Next {
             const val API_BASE_URL = "https://next.bgm.tv/"
             const val CALENDER = API_BASE_URL + "p1/calendar"
             const val SUBJECT_DETAIL= API_BASE_URL + "p1/subjects"
+            const val EPISODES_COMMENTS = "${API_BASE_URL}p1/episodes/%d/comments"
         }
 
     }
