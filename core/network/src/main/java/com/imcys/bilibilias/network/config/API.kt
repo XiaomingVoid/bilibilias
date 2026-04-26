@@ -120,15 +120,19 @@ object API {
 
     object Bgm {
         const val API_BASE_URL = "https://api.bgm.tv/"
+        // 放送列表
         const val CALENDER = API_BASE_URL + "calendar"
-
+        // 番剧章节
         const val GET_EPISODES= API_BASE_URL + "v0/episodes"
 
 
         object Next {
             const val API_BASE_URL = "https://next.bgm.tv/"
+            // 新放送列表
             const val CALENDER = API_BASE_URL + "p1/calendar"
+            // 番剧详情
             const val SUBJECT_DETAIL= API_BASE_URL + "p1/subjects"
+            // 番剧章节回复
             const val EPISODES_COMMENTS = "${API_BASE_URL}p1/episodes/%d/comments"
         }
 

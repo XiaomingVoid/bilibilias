@@ -1,3 +1,4 @@
+import com.android.build.api.variant.BuildConfigField
 import com.imcys.bilibilias.buildlogic.BILIBILIASBuildType
 
 plugins {
@@ -14,6 +15,12 @@ plugins {
 val enabledPlayAppMode: String by project
 val enabledAnalytics: String by project
 val baiduStatId: String = project.findProperty("as.baidu.stat.id")?.toString() ?: ""
+val gitCommitHash: String = providers.exec {
+    commandLine("git", "rev-parse", "--short", "HEAD")
+}.standardOutput.asText.get().trim()
+val isDebugBuild = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("debug", ignoreCase = true)
+}
 
 android {
     namespace = "com.imcys.bilibilias"
@@ -25,6 +32,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["BAIDU_STAT_ID"] = baiduStatId
         buildConfigField("String", "BAIDU_STAT_ID", """"$baiduStatId"""".trimIndent())
+        buildConfigField("String", "GIT_COMMIT_HASH", """"$gitCommitHash"""".trimIndent())
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a","x86_64")
         }
@@ -103,10 +111,9 @@ android {
 
     }
 
-    val isDebug = gradle.startParameter.taskNames.any { it.contains("debug", true) }
     splits {
         abi {
-            isEnable = !isDebug  // debug 时禁用，release 时启用
+            isEnable = !isDebugBuild  // debug 时禁用，release 时启用
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
             isUniversalApk = true

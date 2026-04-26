@@ -488,17 +488,13 @@ private fun RoamSettingSuccessScreen(
         Column(
             Modifier.padding(vertical = 5.dp, horizontal = 12.dp),
         ) {
-            ASWarringTip(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                enabledPadding = false
-            ) {
+            ASWarringTip {
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         "你当前还未登录漫游身份，点击登录后才可开启哦。",
-                        fontSize = 14.sp,
                         modifier = Modifier.weight(1f)
                     )
                     ASIconButton(onClick = {

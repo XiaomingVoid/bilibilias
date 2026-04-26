@@ -51,6 +51,7 @@ import com.imcys.bilibilias.common.event.restoreBackStack
 import com.imcys.bilibilias.common.event.sendNavigatePageEvent
 import com.imcys.bilibilias.common.utils.analyticsSafe
 import com.imcys.bilibilias.common.utils.baiduAnalyticsSafe
+import com.imcys.bilibilias.ui.analysis.navigation.AnalysisRoute
 import com.imcys.bilibilias.ui.login.navigation.QRCodeLoginRoute
 import com.imcys.bilibilias.ui.weight.ASTextButton
 
@@ -67,6 +68,12 @@ class MainActivity : ComponentActivity() {
 
     private var agreePrivacyPolicyState: AppSettings.AgreePrivacyPolicyState =
         AppSettings.AgreePrivacyPolicyState.Default
+
+    private sealed interface DeepLinkAction {
+        data object RestoreMain : DeepLinkAction
+        data object OpenLoginFinish : DeepLinkAction
+        data class OpenAnalysis(val inputText: String) : DeepLinkAction
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -177,16 +184,47 @@ class MainActivity : ComponentActivity() {
                 restoreBackStack()
             }
 
-            else -> parseDeepLink(incoming.data)
+            else -> {
+                parseDeepLink(incoming.data)?.let(::dispatchDeepLink)
+            }
         }
     }
 
-    private fun parseDeepLink(uri: Uri?) {
-        if (uri == null) return
-        when (uri.path) {
-            "/loginFinish" -> {}
-            "/qrLogin" -> {
-                sendNavigatePageEvent(QRCodeLoginRoute())
+    private fun parseDeepLink(uri: Uri?): DeepLinkAction? {
+        if (uri == null || uri.scheme != "bilibilias") return null
+
+        return when (uri.host) {
+            "imcys" -> {
+                when (uri.path) {
+                    "/main" -> uri.getQueryParameter("video")
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(DeepLinkAction::OpenAnalysis)
+                    else -> null
+                }
+            }
+            "app" -> {
+                when (uri.path) {
+                    "/main" -> DeepLinkAction.RestoreMain
+                    "/loginFinish" -> DeepLinkAction.OpenLoginFinish
+                    "/analysis" -> uri.getQueryParameter("content")
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(DeepLinkAction::OpenAnalysis)
+                    else -> null
+                }
+            }
+            else -> null
+        }
+    }
+
+    /**
+     * 处理深层连接
+     */
+    private fun dispatchDeepLink(action: DeepLinkAction) {
+        when (action) {
+            DeepLinkAction.RestoreMain -> restoreBackStack()
+            DeepLinkAction.OpenLoginFinish -> sendNavigatePageEvent(QRCodeLoginRoute())
+            is DeepLinkAction.OpenAnalysis -> {
+                sendNavigatePageEvent(AnalysisRoute(asInputText = action.inputText))
             }
         }
     }
