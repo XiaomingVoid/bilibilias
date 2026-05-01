@@ -1,6 +1,5 @@
 package com.imcys.bilibilias.ui.setting.roam
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,7 +34,7 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,10 +55,10 @@ import com.imcys.bilibilias.R
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.imcys.bilibilias.BuildConfig
 import com.imcys.bilibilias.common.event.sendToastEvent
 import com.imcys.bilibilias.database.entity.LoginPlatform
 import com.imcys.bilibilias.datastore.AppSettings
+import com.imcys.bilibilias.network.model.app.AppOldApplyRoamBean
 import com.imcys.bilibilias.ui.utils.switchHapticFeedback
 import com.imcys.bilibilias.ui.weight.ASCheckThumbSwitch
 import com.imcys.bilibilias.ui.weight.ASIconButton
@@ -93,9 +92,9 @@ fun RoamScreen(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val lifecycleOwner = LocalLifecycleOwner.current
     val vm = koinViewModel<RoamViewModel>()
-    val uiState by vm.uiState.collectAsState()
+    val uiState by vm.uiState.collectAsStateWithLifecycle()
 
-    val appSettings by vm.appSettings.collectAsState(initial = AppSettings.getDefaultInstance())
+    val appSettings by vm.appSettings.collectAsStateWithLifecycle(initialValue = AppSettings.getDefaultInstance())
     val haptics = LocalHapticFeedback.current
 
     DisposableEffect(lifecycleOwner) {
@@ -120,11 +119,13 @@ fun RoamScreen(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
                 .padding(paddingValues),
-            uiState,
-            appSettings,
-            haptics,
-            vm,
-            onGoToQRCodeLogin
+            uiState = uiState,
+            appSettings = appSettings,
+            haptics = haptics,
+            onApplyRoam = vm::applyRoam,
+            onReloadRoamState = vm::loadRoamUIState,
+            onUpdateRoamEnabledState = vm::updateRoamEnabledState,
+            onGoToQRCodeLogin = onGoToQRCodeLogin
         )
     }
 }
@@ -136,11 +137,22 @@ fun RoamSettingContent(
     uiState: RoamUIState,
     appSettings: AppSettings,
     haptics: HapticFeedback,
-    vm: RoamViewModel,
+    onApplyRoam: suspend (String) -> Result<AppOldApplyRoamBean>,
+    onReloadRoamState: () -> Unit,
+    onUpdateRoamEnabledState: (Boolean) -> Unit,
     onGoToQRCodeLogin: (LoginPlatform) -> Unit
 ) {
     Column {
-        RoamSettingStateContent(modifier, uiState, appSettings, haptics, vm, onGoToQRCodeLogin)
+        RoamSettingStateContent(
+            modifier = modifier,
+            uiState = uiState,
+            appSettings = appSettings,
+            haptics = haptics,
+            onApplyRoam = onApplyRoam,
+            onReloadRoamState = onReloadRoamState,
+            onUpdateRoamEnabledState = onUpdateRoamEnabledState,
+            onGoToQRCodeLogin = onGoToQRCodeLogin
+        )
 
         RoamSettingDescription()
     }
@@ -164,7 +176,9 @@ private fun RoamSettingStateContent(
     uiState: RoamUIState,
     appSettings: AppSettings,
     haptics: HapticFeedback,
-    vm: RoamViewModel,
+    onApplyRoam: suspend (String) -> Result<AppOldApplyRoamBean>,
+    onReloadRoamState: () -> Unit,
+    onUpdateRoamEnabledState: (Boolean) -> Unit,
     onGoToQRCodeLogin: (LoginPlatform) -> Unit
 ) {
     AnimatedContent(uiState) { state ->
@@ -176,13 +190,18 @@ private fun RoamSettingStateContent(
                     state,
                     appSettings,
                     haptics,
-                    vm,
+                    onUpdateRoamEnabledState,
                     onGoToQRCodeLogin
                 )
             }
 
             is RoamUIState.Apply -> Column(modifier = modifier) {
-                RoamSettingApplyScreen(state, haptics, vm)
+                RoamSettingApplyScreen(
+                    uiState = state,
+                    haptics = haptics,
+                    onApplyRoam = onApplyRoam,
+                    onReloadRoamState = onReloadRoamState
+                )
             }
 
             RoamUIState.NoLogin -> Column(modifier = modifier) {
@@ -255,9 +274,15 @@ private fun RoamSettingNoLoginTip(onGoToQRCodeLogin: (LoginPlatform) -> Unit) {
 fun RoamSettingApplyScreen(
     uiState: RoamUIState.Apply,
     haptics: HapticFeedback,
-    vm: RoamViewModel
+    onApplyRoam: suspend (String) -> Result<AppOldApplyRoamBean>,
+    onReloadRoamState: () -> Unit
 ) {
-    RoamApplyContainer(uiState, haptics, vm)
+    RoamApplyContainer(
+        uiState = uiState,
+        haptics = haptics,
+        onApplyRoam = onApplyRoam,
+        onReloadRoamState = onReloadRoamState
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -265,7 +290,8 @@ fun RoamSettingApplyScreen(
 private fun RoamApplyContainer(
     uiState: RoamUIState.Apply,
     haptics: HapticFeedback,
-    vm: RoamViewModel
+    onApplyRoam: suspend (String) -> Result<AppOldApplyRoamBean>,
+    onReloadRoamState: () -> Unit
 ) {
     var applyRoamContent by remember { mutableStateOf(uiState.applyRoamBean.reason ?: "") }
     var isLoading by remember { mutableStateOf(false) }
@@ -282,7 +308,7 @@ private fun RoamApplyContainer(
                 haptics.performHapticFeedback(HapticFeedbackType.Confirm)
                 scope.launch(Dispatchers.IO) {
                     isLoading = true
-                    val result = vm.applyRoam(applyRoamContent)
+                    val result = onApplyRoam(applyRoamContent)
 
                     if (result.isFailure) {
                         sendToastEvent("网络异常，请稍后重试")
@@ -290,7 +316,7 @@ private fun RoamApplyContainer(
                     result.getOrNull()?.let { bean ->
                         sendToastEvent(bean.msg)
                     }
-                    vm.loadRoamUIState()
+                    onReloadRoamState()
 
                     isLoading = false
                 }
@@ -436,7 +462,7 @@ private fun RoamSettingSuccessScreen(
     uiState: RoamUIState.Success,
     appSettings: AppSettings,
     haptics: HapticFeedback,
-    vm: RoamViewModel,
+    onUpdateRoamEnabledState: (Boolean) -> Unit,
     onGoToQRCodeLogin: (LoginPlatform) -> Unit
 ) {
     BannerItem {
@@ -452,7 +478,7 @@ private fun RoamSettingSuccessScreen(
                 onCheckedChange = {
                     if (!uiState.isLogin) return@ASCheckThumbSwitch
                     haptics.switchHapticFeedback(it)
-                    vm.updateRoamEnabledState(it)
+                    onUpdateRoamEnabledState(it)
                 }
             )
         }
@@ -462,17 +488,13 @@ private fun RoamSettingSuccessScreen(
         Column(
             Modifier.padding(vertical = 5.dp, horizontal = 12.dp),
         ) {
-            ASWarringTip(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                enabledPadding = false
-            ) {
+            ASWarringTip {
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         "你当前还未登录漫游身份，点击登录后才可开启哦。",
-                        fontSize = 14.sp,
                         modifier = Modifier.weight(1f)
                     )
                     ASIconButton(onClick = {

@@ -13,6 +13,7 @@ import com.imcys.bilibilias.network.plugin.RoamPlugin
 import com.imcys.bilibilias.network.service.AppAPIService
 import com.imcys.bilibilias.network.service.BILIBILITVAPIService
 import com.imcys.bilibilias.network.service.BILIBILIWebAPIService
+import com.imcys.bilibilias.network.service.BgmAPIService
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.BrowserUserAgent
@@ -175,6 +176,36 @@ val netWorkModule = module {
         }
     }
 
+    // Bgm的网络请求不装任何业务插件
+    single(qualifier = named("BgmHttpClient")) {
+        HttpClient(CIO) {
+            BrowserUserAgent()
+            install(HttpTimeout) {
+                requestTimeoutMillis = 120_000
+                connectTimeoutMillis = 120_000
+                socketTimeoutMillis = 120_000
+            }
+            install(HttpRequestRetry) {
+                retryOnServerErrors(maxRetries = 3)
+                exponentialDelay()
+            }
+            install(ContentNegotiation) {
+                json(get())
+            }
+            if (BuildConfig.DEBUG){
+                install(Logging) {
+                    logger = object : Logger {
+                        override fun log(message: String) {
+                            Log.d("BgmKtor", message)
+                        }
+                    }
+                    level = LogLevel.HEADERS
+                }
+            }
+
+        }
+    }
+
 
     // WebAPI
     single {
@@ -187,5 +218,9 @@ val netWorkModule = module {
     // AppAPI
     single {
         AppAPIService(get())
+    }
+    // BgmAPI
+    single {
+        BgmAPIService(get(qualifier = named("BgmHttpClient")))
     }
 }

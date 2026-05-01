@@ -1,6 +1,7 @@
 package com.imcys.bilibilias
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -19,9 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -43,11 +42,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.baidu.mobstat.StatService
 import com.imcys.bilibilias.common.data.CommonBuildConfig
+import com.imcys.bilibilias.common.event.restoreBackStack
+import com.imcys.bilibilias.common.event.sendNavigatePageEvent
 import com.imcys.bilibilias.common.utils.analyticsSafe
 import com.imcys.bilibilias.common.utils.baiduAnalyticsSafe
+import com.imcys.bilibilias.ui.analysis.navigation.AnalysisRoute
+import com.imcys.bilibilias.ui.login.navigation.QRCodeLoginRoute
 import com.imcys.bilibilias.ui.weight.ASTextButton
 
 class MainActivity : ComponentActivity() {
@@ -64,23 +67,26 @@ class MainActivity : ComponentActivity() {
     private var agreePrivacyPolicyState: AppSettings.AgreePrivacyPolicyState =
         AppSettings.AgreePrivacyPolicyState.Default
 
+    private sealed interface DeepLinkAction {
+        data object RestoreMain : DeepLinkAction
+        data object OpenLoginFinish : DeepLinkAction
+        data class OpenAnalysis(val inputText: String) : DeepLinkAction
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            var enabledDynamicColor by remember { mutableStateOf(false) }
             val updateSnackBarHostState = remember { SnackbarHostState() }
-            val showSkipVersionState by showSkipVersion.collectAsState()
+            val enabledDynamicColor by appSettingsFlow.collectAsStateWithLifecycle(
+                initialValue = AppSettings.getDefaultInstance()
+            )
+            val showUpdateSnackBarState by showUpdateSnackBar.collectAsStateWithLifecycle()
+            val showSkipVersionState by showSkipVersion.collectAsStateWithLifecycle()
 
-            LaunchedEffect(Unit) {
-                appSettingsFlow.collect {
-                    enabledDynamicColor = it.enabledDynamicColor
-                }
-            }
-
-            LaunchedEffect(showUpdateSnackBar) {
-                if (!showUpdateSnackBar.value) return@LaunchedEffect
+            LaunchedEffect(showUpdateSnackBarState) {
+                if (!showUpdateSnackBarState) return@LaunchedEffect
                 val result = updateSnackBarHostState.showSnackbar(
                     message = getString(R.string.update_downloaded),
                     actionLabel = getString(R.string.update_action),
@@ -98,7 +104,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            BILIBILIASTheme(dynamicColor = enabledDynamicColor) {
+            BILIBILIASTheme(dynamicColor = enabledDynamicColor.enabledDynamicColor) {
                 Box {
                     BILIBILIASAppScreen()
                     SnackbarHost(
@@ -169,6 +175,51 @@ class MainActivity : ComponentActivity() {
 
             Intent.ACTION_MAIN -> {
                 // 正常启动
+                // 检查
+                restoreBackStack()
+            }
+
+            else -> {
+                parseDeepLink(incoming.data)?.let(::dispatchDeepLink)
+            }
+        }
+    }
+
+    private fun parseDeepLink(uri: Uri?): DeepLinkAction? {
+        if (uri == null || uri.scheme != "bilibilias") return null
+
+        return when (uri.host) {
+            "imcys" -> {
+                when (uri.path) {
+                    "/main" -> uri.getQueryParameter("video")
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(DeepLinkAction::OpenAnalysis)
+                    else -> null
+                }
+            }
+            "app" -> {
+                when (uri.path) {
+                    "/main" -> DeepLinkAction.RestoreMain
+                    "/loginFinish" -> DeepLinkAction.OpenLoginFinish
+                    "/analysis" -> uri.getQueryParameter("content")
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(DeepLinkAction::OpenAnalysis)
+                    else -> null
+                }
+            }
+            else -> null
+        }
+    }
+
+    /**
+     * 处理深层连接
+     */
+    private fun dispatchDeepLink(action: DeepLinkAction) {
+        when (action) {
+            DeepLinkAction.RestoreMain -> restoreBackStack()
+            DeepLinkAction.OpenLoginFinish -> sendNavigatePageEvent(QRCodeLoginRoute())
+            is DeepLinkAction.OpenAnalysis -> {
+                sendNavigatePageEvent(AnalysisRoute(asInputText = action.inputText))
             }
         }
     }
@@ -204,7 +255,10 @@ class MainActivity : ComponentActivity() {
      */
     fun initBaiduAnalytics(state: AppSettings.AgreePrivacyPolicyState) {
         baiduAnalyticsSafe {
-            StatService.setAuthorizedState(this, state == AppSettings.AgreePrivacyPolicyState.Agreed)
+            StatService.setAuthorizedState(
+                this,
+                state == AppSettings.AgreePrivacyPolicyState.Agreed
+            )
             StatService.start(this)
         }
     }

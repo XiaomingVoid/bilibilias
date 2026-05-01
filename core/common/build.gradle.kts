@@ -15,4 +15,5 @@ dependencies {
     api(project(":core:ui"))
     api(libs.androidx.core.ktx)
     api(libs.androidx.lifecycle.runtime.ktx)
+    testImplementation(libs.junit4)
 }

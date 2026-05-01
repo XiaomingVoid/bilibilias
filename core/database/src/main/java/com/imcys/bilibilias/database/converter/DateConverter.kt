@@ -1,6 +1,6 @@
 package com.imcys.bilibilias.database.converter
 
-import androidx.room.TypeConverter
+import androidx.room3.TypeConverter
 import java.util.Date
 
 class DateConverter {

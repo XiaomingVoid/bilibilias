@@ -1,5 +1,6 @@
 package com.imcys.bilibilias.data.model
 
+import com.imcys.bilibilias.common.data.value.BiliImageURL
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -22,7 +23,7 @@ data class BILISpaceArchiveModel(
         val play: Long,
         val danmu: Long,
         val description: String,
-        val pic: String,
+        val pic: BiliImageURL,
     )
 
     @Serializable

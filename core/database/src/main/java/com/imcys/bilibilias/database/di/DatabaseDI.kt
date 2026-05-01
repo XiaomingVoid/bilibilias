@@ -1,6 +1,6 @@
 package com.imcys.bilibilias.database.di
 
-import androidx.room.Room
+import androidx.room3.Room
 import com.imcys.bilibilias.database.BILIBILIASDatabase
 import com.imcys.bilibilias.database.MIGRATION_1_2
 import com.imcys.bilibilias.database.MIGRATION_2_3

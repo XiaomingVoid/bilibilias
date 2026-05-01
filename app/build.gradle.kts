@@ -1,3 +1,4 @@
+import com.android.build.api.variant.BuildConfigField
 import com.imcys.bilibilias.buildlogic.BILIBILIASBuildType
 
 plugins {
@@ -9,22 +10,29 @@ plugins {
     alias(libs.plugins.firebase.perf)
     alias(libs.plugins.kotlin.plugin.serialization)
     alias { libs.plugins.kotlin.parcelize }
+    alias(libs.plugins.ksp)
 }
 val enabledPlayAppMode: String by project
 val enabledAnalytics: String by project
 val baiduStatId: String = project.findProperty("as.baidu.stat.id")?.toString() ?: ""
+val gitCommitHash: String = providers.exec {
+    commandLine("git", "rev-parse", "--short", "HEAD")
+}.standardOutput.asText.get().trim()
+val isDebugBuild = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("debug", ignoreCase = true)
+}
 
 android {
     namespace = "com.imcys.bilibilias"
 
     defaultConfig {
-        targetSdk = 36
         applicationId = "com.imcys.bilibilias"
         versionCode = 316
         versionName = "3.1.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["BAIDU_STAT_ID"] = baiduStatId
         buildConfigField("String", "BAIDU_STAT_ID", """"$baiduStatId"""".trimIndent())
+        buildConfigField("String", "GIT_COMMIT_HASH", """"$gitCommitHash"""".trimIndent())
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a","x86_64")
         }
@@ -103,10 +111,9 @@ android {
 
     }
 
-    val isDebug = gradle.startParameter.taskNames.any { it.contains("debug", true) }
     splits {
         abi {
-            isEnable = !isDebug  // debug 时禁用，release 时启用
+            isEnable = !isDebugBuild  // debug 时禁用，release 时启用
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
             isUniversalApk = true
@@ -119,23 +126,16 @@ android {
         resValues = true
     }
 
-    kotlin {
-        compilerOptions {
-            freeCompilerArgs.add("-XXLanguage:+ExplicitBackingFields")
+}
+if (!enabledPlayAppMode.toBoolean() && enabledAnalytics.toBoolean()) {
+    /**
+     * 百度统计静态清单合并
+     */
+    androidComponents {
+        onVariants { variant ->
+            variant.sources.manifests.addStaticManifestFile("src/baidu/AndroidManifest.xml")
         }
     }
-
-    if (!enabledPlayAppMode.toBoolean() && enabledAnalytics.toBoolean()) {
-        /**
-         * 百度统计静态清单合并
-         */
-        androidComponents {
-            onVariants { variant ->
-                variant.sources.manifests.addStaticManifestFile("src/baidu/AndroidManifest.xml")
-            }
-        }
-    }
-
 }
 
 dependencies {
@@ -168,12 +168,18 @@ dependencies {
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
 
+    // Native MCP
+    implementation(libs.appfunctions)
+    implementation(libs.appfunctions.service)
+    ksp(libs.appfunctions.compiler)
+
     // xposed
     //    compileOnly(libs.xposed.api)
 
 
     // 预览工具
     androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 

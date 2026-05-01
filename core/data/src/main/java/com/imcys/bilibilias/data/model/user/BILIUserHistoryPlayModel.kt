@@ -1,5 +1,6 @@
 package com.imcys.bilibilias.data.model.user
 
+import com.imcys.bilibilias.common.data.value.BiliImageURL
 import com.imcys.bilibilias.network.model.user.BILIUserHistoryPlayInfo.ItemData.History
 
 data class BILIUserHistoryPlayModel(
@@ -9,7 +10,7 @@ data class BILIUserHistoryPlayModel(
     val showTitle: String,
     val tagName: String,
     val title: String,
-    val cover: String,
+    val cover: BiliImageURL,
     val history: History,
     val max: Long = 0,
     val viewAt: Long = 0,

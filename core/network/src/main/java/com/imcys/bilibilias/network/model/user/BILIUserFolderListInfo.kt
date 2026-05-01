@@ -1,6 +1,7 @@
 package com.imcys.bilibilias.network.model.user
 
 
+import com.imcys.bilibilias.common.data.value.BiliImageURL
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -52,7 +53,7 @@ data class BILIUserFolderDetailInfo(
         @SerialName("cnt_info")
         val cntInfo: CntInfo,
         @SerialName("cover")
-        val cover: String,
+        val cover: BiliImageURL,
         @SerialName("ctime")
         val ctime: Long,
         @SerialName("duration")

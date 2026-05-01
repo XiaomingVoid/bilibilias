@@ -3,7 +3,6 @@ package com.imcys.bilibilias.ui.home
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CopyAll
 import androidx.compose.material.icons.outlined.VideoCameraBack
 import androidx.compose.material.icons.outlined.WebAsset
@@ -60,7 +60,9 @@ import com.imcys.bilibilias.common.utils.ASConstant.QQ_GROUP_URL
 import com.imcys.bilibilias.common.utils.DeviceInfoUtils
 import com.imcys.bilibilias.common.utils.openLink
 import com.imcys.bilibilias.ui.home.navigation.HomeRoute
+import com.imcys.bilibilias.ui.tools.calendar.CalendarRoute
 import com.imcys.bilibilias.ui.tools.donate.DonateRoute
+import com.imcys.bilibilias.ui.tools.export.ExportRoute
 import com.imcys.bilibilias.ui.tools.frame.FrameExtractorRoute
 import com.imcys.bilibilias.ui.tools.parser.WebParserRoute
 import com.imcys.bilibilias.ui.weight.ASAlertDialog
@@ -70,13 +72,19 @@ import com.imcys.bilibilias.ui.weight.tip.ASInfoTip
 import kotlinx.coroutines.launch
 
 @Composable
-fun ToolsScreen(vm: HomeViewModel, onToPage: (NavKey) -> Unit) {
+fun ToolsScreen(
+    onToPage: (NavKey) -> Unit,
+    onUpdateUseToolRecord: (ToolInfo) -> Unit
+) {
     Column(
         Modifier
             .padding(horizontal = 15.dp)
             .padding(top = 10.dp),
     ) {
-        ToolsContent(vm, onToPage)
+        ToolsContent(
+            onToPage = onToPage,
+            onUpdateUseToolRecord = onUpdateUseToolRecord
+        )
     }
 }
 
@@ -102,6 +110,18 @@ enum class ToolInfo(
         icon = Icons.Outlined.WebAsset,
         navKey = WebParserRoute
     ),
+    Calendar(
+        title = "追番日历",
+        desc = "快速找到本周更新的番剧视频。",
+        icon = Icons.Outlined.CalendarToday,
+        navKey = CalendarRoute
+    ),
+    Export(
+        title = "导出缓存",
+        desc = "可导出已在APP内下载缓存视频。",
+        iconRes = R.drawable.outline_file_export_24,
+        navKey = ExportRoute
+    ),
     // 反馈问题
     Feedback(
         title = "反馈问题",
@@ -119,15 +139,19 @@ enum class ToolInfo(
 }
 
 @Composable
-private fun ToolsContent(vm: HomeViewModel, onToPage: (NavKey) -> Unit) {
+private fun ToolsContent(
+    onToPage: (NavKey) -> Unit,
+    onUpdateUseToolRecord: (ToolInfo) -> Unit
+) {
 
     var showFeedbackDialog by remember { mutableStateOf(false) }
 
     val videoTools = listOf(
-        ToolInfo.FrameExtractor
+        ToolInfo.FrameExtractor,
     )
     val parserTools = listOf(
-        ToolInfo.WebParser
+        ToolInfo.Calendar,
+        ToolInfo.WebParser,
     )
     val otherTools = mutableListOf(
         ToolInfo.Feedback
@@ -141,7 +165,7 @@ private fun ToolsContent(vm: HomeViewModel, onToPage: (NavKey) -> Unit) {
 
     // 点击工具处理
     fun clickTool(toolInfo: ToolInfo) {
-        vm.updateUseToolRecord(toolInfo)
+        onUpdateUseToolRecord(toolInfo)
         when (toolInfo) {
             ToolInfo.Feedback -> {
                 showFeedbackDialog = true
@@ -163,7 +187,7 @@ private fun ToolsContent(vm: HomeViewModel, onToPage: (NavKey) -> Unit) {
         ) {
             Text(stringResource(R.string.tools_video_processing))
         }
-        items(videoTools) {
+        items(videoTools, key = { it.name }) {
             ToolCard(it, onClick = {
                 clickTool(it)
             })
@@ -174,7 +198,7 @@ private fun ToolsContent(vm: HomeViewModel, onToPage: (NavKey) -> Unit) {
         ) {
             Text(stringResource(R.string.tools_parser_tools))
         }
-        items(parserTools) {
+        items(parserTools, key = { it.name }) {
             ToolCard(it, onClick = {
                 clickTool(it)
             })
@@ -184,7 +208,7 @@ private fun ToolsContent(vm: HomeViewModel, onToPage: (NavKey) -> Unit) {
             Text(stringResource(R.string.tools_other))
         }
 
-        items(otherTools) {
+        items(otherTools, key = { it.name }) {
             ToolCard(it, onClick = {
                 clickTool(it)
             })

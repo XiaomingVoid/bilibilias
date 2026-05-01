@@ -18,24 +18,28 @@ import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
-import androidx.navigation3.runtime.NavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.runtime.serialization.NavBackStackSerializer
+import androidx.navigation3.runtime.serialization.NavKeySerializer
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import com.imcys.bilibilias.common.event.analysisHandleChannel
+import com.imcys.bilibilias.common.event.NavigatePageMode
+import com.imcys.bilibilias.common.event.navigatePageEventFlow
 import com.imcys.bilibilias.common.event.playVoucherErrorChannel
 import com.imcys.bilibilias.common.event.requestFrequentHandleChannel
+import com.imcys.bilibilias.common.event.restoreBackStackEventFlow
+import com.imcys.bilibilias.common.event.saveBackStackChannel
+import com.imcys.bilibilias.data.repository.AppSettingsRepository
 import com.imcys.bilibilias.ui.analysis.AnalysisScreen
-import com.imcys.bilibilias.ui.analysis.AnalysisViewModel
 import com.imcys.bilibilias.ui.analysis.navigation.AnalysisRoute
 import com.imcys.bilibilias.ui.analysis.videocodeing.VideoCodingInfoRoute
 import com.imcys.bilibilias.ui.analysis.videocodeing.VideoCodingInfoScreen
@@ -75,14 +79,19 @@ import com.imcys.bilibilias.ui.setting.storage.StorageManagementRoute
 import com.imcys.bilibilias.ui.setting.storage.StorageManagementScreen
 import com.imcys.bilibilias.ui.setting.version.AppVersionInfoRoute
 import com.imcys.bilibilias.ui.setting.version.AppVersionInfoScreen
+import com.imcys.bilibilias.ui.tools.calendar.CalendarRoute
+import com.imcys.bilibilias.ui.tools.calendar.CalendarScreen
+import com.imcys.bilibilias.ui.tools.calendar.detail.SubjectDetailRoute
+import com.imcys.bilibilias.ui.tools.calendar.detail.SubjectDetailScreen
 import com.imcys.bilibilias.ui.tools.donate.DonateRoute
 import com.imcys.bilibilias.ui.tools.donate.DonateScreen
+import com.imcys.bilibilias.ui.tools.export.ExportRoute
+import com.imcys.bilibilias.ui.tools.export.ExportScreen
 import com.imcys.bilibilias.ui.tools.frame.FrameExtractorRoute
 import com.imcys.bilibilias.ui.tools.frame.FrameExtractorScreen
 import com.imcys.bilibilias.ui.tools.parser.WebParserRoute
 import com.imcys.bilibilias.ui.tools.parser.WebParserScreen
 import com.imcys.bilibilias.ui.user.UserScreen
-import com.imcys.bilibilias.ui.user.UserViewModel
 import com.imcys.bilibilias.ui.user.bangumifollow.BangumiFollowRoute
 import com.imcys.bilibilias.ui.user.bangumifollow.BangumiFollowScreen
 import com.imcys.bilibilias.ui.user.folder.UserFolderRoute
@@ -95,7 +104,11 @@ import com.imcys.bilibilias.ui.user.like.LikeVideoScreen
 import com.imcys.bilibilias.ui.user.navigation.UserRoute
 import com.imcys.bilibilias.ui.user.work.WorkListRoute
 import com.imcys.bilibilias.ui.user.work.WorkListScreen
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.Json
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import kotlin.collections.listOf
 
 /**
  * BILIBILAIS导航显示组件
@@ -105,7 +118,11 @@ import org.koin.androidx.compose.koinViewModel
 fun BILIBILAISNavDisplay() {
     val backStack = rememberNavBackStack(HomeRoute())
     val listDetailStrategy = rememberListDetailSceneStrategy<NavKey>()
-
+    val navBackStackSerializer =
+        remember { NavBackStackSerializer(elementSerializer = NavKeySerializer()) }
+    val json = koinInject<Json>()
+    val settingsRepository = koinInject<AppSettingsRepository>()
+    val onBack = { backStack.removeLastOrNullSafe() }
     // 监听解析事件
     LaunchedEffect(Unit) {
         analysisHandleChannel.collect {
@@ -125,6 +142,33 @@ fun BILIBILAISNavDisplay() {
             backStack.addWithReuse(RequestFrequentRoute(it.url))
         }
     }
+
+    LaunchedEffect(Unit) {
+        navigatePageEventFlow.collect {
+            backStack.navigate(it.navKey, it.mode)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        saveBackStackChannel.collect {
+            val saveStr = navBackStackSerializer.saveBackStack(json, backStack)
+            settingsRepository.updateNavBackStack(saveStr)
+            it.onSaveFinish.invoke()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        restoreBackStackEventFlow.collect {
+            val setting = settingsRepository.appSettingsFlow.first()
+            if (setting.navBackStack.isNotEmpty()) {
+                val stack = navBackStackSerializer.loadBackStack(json, setting.navBackStack)
+                backStack.clear()
+                backStack.addAll(stack)
+                settingsRepository.updateNavBackStack("")
+            }
+        }
+    }
+
 
     fun createPopTransitionSpec() = ContentTransform(
         // 返回导航：上一个页面进入 - 从放大状态恢复
@@ -147,8 +191,9 @@ fun BILIBILAISNavDisplay() {
     SharedTransitionLayout {
         NavDisplay(
             backStack = backStack,
-            onBack = { backStack.removeLastOrNullSafe() },
-            sceneStrategy = listDetailStrategy,
+            onBack = onBack,
+            sharedTransitionScope = this,
+            sceneStrategies = listOf(listDetailStrategy),
             entryDecorators = listOf(
                 // 防止屏幕旋转等导致的重组时，页面状态丢失
                 rememberSaveableStateHolderNavEntryDecorator(),
@@ -208,7 +253,7 @@ fun BILIBILAISNavDisplay() {
                 }
                 entry<LoginRoute> {
                     LoginScreen(
-                        onToBack = { backStack.removeLastOrNullSafe() },
+                        onToBack = onBack,
                         goToQRCodeLogin = {
                             backStack.addWithReuse(QRCodeLoginRoute())
                         }
@@ -217,7 +262,7 @@ fun BILIBILAISNavDisplay() {
                 entry<QRCodeLoginRoute> {
                     QRCodeLoginScreen(
                         it,
-                        onToBack = { backStack.removeLastOrNullSafe() },
+                        onToBack = onBack,
                         onBackHomePage = {
                             backStack.clear()
                             backStack.add(HomeRoute(isFormLogin = true))
@@ -230,7 +275,7 @@ fun BILIBILAISNavDisplay() {
                 entry<UserRoute> {
                     UserScreen(
                         userRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() },
+                        onToBack = onBack,
                         onToSettings = {
                             backStack.addWithReuse(SettingRoute)
                         },
@@ -255,13 +300,11 @@ fun BILIBILAISNavDisplay() {
                     )
                 }
                 entry<AnalysisRoute> {
-                    val vm = koinViewModel<AnalysisViewModel>(key = it.toString())
                     AnalysisScreen(
                         it,
-                        vm,
                         this@SharedTransitionLayout,
                         LocalNavAnimatedContentScope.current,
-                        onToBack = { backStack.removeLastOrNullSafe() },
+                        onToBack = onBack,
                         goToUser = { mid ->
                             backStack.add(UserRoute(mid = mid, isAnalysisUser = true))
                         },
@@ -276,7 +319,8 @@ fun BILIBILAISNavDisplay() {
                 entry<DownloadRoute> {
                     DownloadScreen(
                         it,
-                        onToBack = { backStack.removeLastOrNullSafe() })
+                        onToBack = onBack
+                    )
                 }
                 entry<SettingRoute>(
                     metadata = ListDetailSceneStrategy.listPane(
@@ -297,7 +341,7 @@ fun BILIBILAISNavDisplay() {
                         onToRoam = {
                             backStack.addWithReuse(RoamRoute)
                         },
-                        onToBack = { backStack.removeLastOrNullSafe() },
+                        onToBack = onBack,
                         onToComplaint = { backStack.addWithReuse(ComplaintRoute) },
                         onToLayoutTypeset = { backStack.addWithReuse(LayoutTypesetRoute) },
                         onToAbout = { backStack.addWithReuse(AboutRouter) },
@@ -320,7 +364,7 @@ fun BILIBILAISNavDisplay() {
                     metadata = ListDetailSceneStrategy.detailPane()
                 ) {
                     RoamScreen(
-                        onToBack = { backStack.removeLastOrNullSafe() },
+                        onToBack = onBack,
                         onGoToQRCodeLogin = {
                             backStack.addWithReuse(
                                 QRCodeLoginRoute(
@@ -342,37 +386,37 @@ fun BILIBILAISNavDisplay() {
                 entry<WorkListRoute> {
                     WorkListScreen(
                         workListRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<BangumiFollowRoute> {
                     BangumiFollowScreen(
                         bangumiFollowRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<UserFolderRoute> {
                     UserFolderScreen(
                         userFolderRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<LikeVideoRoute> {
                     LikeVideoScreen(
                         likeVideoRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<ComplaintRoute>(
                     metadata = ListDetailSceneStrategy.detailPane()
                 ) {
                     ComplaintScreen(
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<VideoCodingInfoRoute> {
                     VideoCodingInfoScreen(
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<LayoutTypesetRoute>(
@@ -380,13 +424,13 @@ fun BILIBILAISNavDisplay() {
                 ) {
                     LayoutTypesetScreen(
                         layoutTypesetRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<UserPlayHistoryRoute> {
                     UserPlayHistoryScreen(
                         userPlayHistoryRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<AboutRouter>(
@@ -394,7 +438,7 @@ fun BILIBILAISNavDisplay() {
                 ) {
                     AboutScreen(
                         aboutRouter = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<AppVersionInfoRoute>(
@@ -402,13 +446,13 @@ fun BILIBILAISNavDisplay() {
                 ) {
                     AppVersionInfoScreen(
                         appVersionInfoRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<FrameExtractorRoute> {
                     FrameExtractorScreen(
                         frameExtractorRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<CookeLoginRoute> {
@@ -436,7 +480,7 @@ fun BILIBILAISNavDisplay() {
                 ) {
                     StorageManagementScreen(
                         route = it,
-                        onToBack = { backStack.removeLastOrNullSafe() },
+                        onToBack = onBack,
                         onToDownloadList = {
                             backStack.add(DownloadRoute(1))
                         }
@@ -447,13 +491,13 @@ fun BILIBILAISNavDisplay() {
                 ) {
                     NamingConventionScreen(
                         namingConventionRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<RequestFrequentRoute> {
                     RequestFrequentScreen(
                         requestFrequentRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<LineConfigRoute>(
@@ -461,19 +505,40 @@ fun BILIBILAISNavDisplay() {
                 ) {
                     LineConfigScreen(
                         lineConfigRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<WebParserRoute> {
                     WebParserScreen(
                         webParserRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
                     )
                 }
                 entry<ParsePlatformRoute> {
                     ParsePlatformScreen(
                         parsePlatformRoute = it,
-                        onToBack = { backStack.removeLastOrNullSafe() }
+                        onToBack = onBack
+                    )
+                }
+                entry<CalendarRoute> {
+                    CalendarScreen(
+                        calendarRoute = it,
+                        onToSubjectDetail = {
+                            backStack.addWithReuse(SubjectDetailRoute(it))
+                        },
+                        onToBack = onBack
+                    )
+                }
+                entry<SubjectDetailRoute> {
+                    SubjectDetailScreen(
+                        subjectDetailRoute = it,
+                        onToBack = onBack
+                    )
+                }
+                entry<ExportRoute> {
+                    ExportScreen(
+                        exportRoute = it,
+                        onToBack = onBack
                     )
                 }
             }
@@ -510,6 +575,55 @@ inline fun <reified T : NavKey> NavBackStack<T>.addWithReuse(route: T) {
 }
 
 /**
+ * 运行时类型的栈内复用扩展函数。
+ * 适用于事件总线等仅持有 NavKey 基类的场景。
+ */
+fun NavBackStack<NavKey>.addWithReuseKey(route: NavKey) {
+    addWithReuse(route)
+}
+
+/**
+ * 根据导航模式统一处理回退栈。
+ */
+fun NavBackStack<NavKey>.navigate(
+    route: NavKey,
+    mode: NavigatePageMode = NavigatePageMode.MoveToTop
+) {
+    when (mode) {
+        NavigatePageMode.Push -> add(route)
+        NavigatePageMode.ReuseInStack -> addWithReuseKey(route)
+        NavigatePageMode.MoveToTop -> moveToTopOrAdd(route)
+        NavigatePageMode.ReplaceTop -> replaceTop(route)
+        NavigatePageMode.ClearAndPush -> {
+            clear()
+            add(route)
+        }
+    }
+}
+
+/**
+ * 将已有页面移动到栈顶，否则直接添加到栈顶。
+ * 如果存在多个相同页面实例，仅保留最新一次导航所需的目标实例。
+ */
+fun <T : NavKey> NavBackStack<T>.moveToTopOrAdd(route: T) {
+    if (lastOrNull() == route) return
+    removeAll { it == route }
+    add(route)
+}
+
+/**
+ * 使用目标页面替换当前栈顶；如果栈为空则直接添加。
+ */
+fun <T : NavKey> NavBackStack<T>.replaceTop(route: T) {
+    if (isEmpty()) {
+        add(route)
+        return
+    }
+    removeLastOrNull()
+    add(route)
+}
+
+/**
  * 安全移除栈顶元素扩展函数
  * 只要栈中元素大于1时才允许移除，防止最后一页被移除导致异常
  */
@@ -519,7 +633,22 @@ fun <T : NavKey> NavBackStack<T>.removeLastOrNullSafe() {
     }
 }
 
-fun <T : NavKey> myDecorator(): NavEntryDecorator<T> =
-    NavEntryDecorator(onPop = { contentKey -> }) { entry ->
-        entry.Content()
-    }
+private fun NavBackStackSerializer<NavKey>.saveBackStack(
+    json: Json,
+    backStack: NavBackStack<NavKey>
+): String {
+    return json.encodeToString(
+        this,
+        backStack
+    )
+}
+
+private fun NavBackStackSerializer<NavKey>.loadBackStack(
+    json: Json,
+    backStackStr: String
+): NavBackStack<NavKey> {
+    return json.decodeFromString(
+        this,
+        backStackStr
+    )
+}

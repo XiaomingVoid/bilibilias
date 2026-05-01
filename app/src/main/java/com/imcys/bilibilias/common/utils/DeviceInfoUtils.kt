@@ -5,6 +5,7 @@ import android.os.Build
 import com.hjq.device.compat.DeviceBrand.*
 import com.hjq.device.compat.DeviceMarketName
 import com.hjq.device.compat.DeviceOs.*
+import com.imcys.bilibilias.BuildConfig
 
 object DeviceInfoUtils {
 
@@ -68,10 +69,11 @@ object DeviceInfoUtils {
         } catch (e: Exception) {
             null
         }
-        val appVersion = packageInfo?.versionName ?: "未知"
+        val appVersion =
+            "${packageInfo?.versionName} (${BuildConfig.BUILD_TYPE}-${BuildConfig.FLAVOR}-${BuildConfig.GIT_COMMIT_HASH})"
         val systemVersion = Build.VERSION.RELEASE ?: "未知"
         val model = Build.MODEL ?: "未知"
-        val marketModel = DeviceMarketName.getMarketName(context) ?: "未知"
+        val marketModel = DeviceMarketName.getMarketName(context)
         val manufacturer = Build.BRAND ?: "未知"
         val brand = Build.BRAND ?: "未知"
         val brandName = try {
@@ -80,12 +82,12 @@ object DeviceInfoUtils {
             Build.DEVICE
         }
         val osName = try {
-            getOsName() ?: "未知"
+            getOsName()
         } catch (_: Throwable) {
             "未知"
         }
         val osVersionName = try {
-            getOsVersionName() ?: "未知"
+            getOsVersionName()
         } catch (_: Throwable) {
             "未知"
         }

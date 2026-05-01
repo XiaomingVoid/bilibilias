@@ -39,7 +39,6 @@ import io.ktor.client.statement.bodyAsBytes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -117,7 +116,7 @@ class NewDownloadManager(
         override fun onServiceConnected(p0: ComponentName?, iBinder: IBinder?) {
             val binder = iBinder as DownloadService.DownloadBinder
             downloadService = binder.service
-            GlobalScope.launch(Dispatchers.IO) {
+            downloadScope.launch {
                 binder.service?.let { startDownloadQueue(it) }
             }
         }
@@ -242,7 +241,7 @@ class NewDownloadManager(
         val bindResult = context.bindService(intent, downloadConn, Context.BIND_AUTO_CREATE)
         if (!bindResult) {
             downloadService?.let {
-                GlobalScope.launch(Dispatchers.IO) {
+                downloadScope.launch {
                     startDownloadQueue(it)
                 }
             }
@@ -617,7 +616,6 @@ class NewDownloadManager(
         return when (mode) {
             DownloadMode.AUDIO_VIDEO,
             DownloadMode.VIDEO_ONLY -> mediaContainerConfig.videoContainer.extension
-
             DownloadMode.AUDIO_ONLY -> mediaContainerConfig.audioContainer.extension
         }
     }

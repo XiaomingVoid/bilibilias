@@ -1,7 +1,7 @@
 package com.imcys.bilibilias.network
-
 import com.imcys.bilibilias.common.event.sendLoginErrorEvent
 import com.imcys.bilibilias.common.event.sendRequestFrequentEvent
+import com.imcys.bilibilias.network.adapter.NetWorkAdapter
 import com.imcys.bilibilias.network.config.APP_KEY
 import com.imcys.bilibilias.network.model.BiliApiResponse
 import com.imcys.bilibilias.network.utils.BiliAppSigner
@@ -10,6 +10,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.request
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -88,6 +89,32 @@ inline fun <reified Data> HttpClient.httpRequest(
             }
             val (data, apiResponse) = (body.data ?: body.result) to body
             handleSuccess(data, apiResponse, response)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emit(NetWorkResult.Error(null, null, e.message ?: ""))
+        }
+    }.flowOn(Dispatchers.IO)
+
+inline fun <reified Data> HttpClient.httpRequest(
+    adapter: NetWorkAdapter<Data>,
+    crossinline request: suspend HttpClient.() -> HttpResponse,
+): FlowNetWorkResult<Data> =
+    flow {
+        emit(NetWorkResult.Loading(true))
+        try {
+            val response = request(this@httpRequest)
+            with(response) {
+                val body = body<Data>()
+                val adapterBody = adapter.conversion<Data>(body).apply {
+                    // 请求参数补充
+                    responseHeader = response.headers.entries()
+                }
+                val (data, apiResponse) = adapterBody.data to adapterBody
+                adapter.handleSuccess(data, apiResponse, response)
+            }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(NetWorkResult.Error(null, null, e.message ?: ""))
         }
@@ -105,10 +132,18 @@ internal suspend fun <Data> FlowCollector<NetWorkResult<Data>>.handleSuccess(
             sendLoginErrorEvent()
             emit(NetWorkResult.Error(data, apiResponse, apiResponse.message ?: ""))
         }
+
         -509 -> {
             sendRequestFrequentEvent(url = response.request.url.toString())
-            emit(NetWorkResult.Error(data, apiResponse, apiResponse.message ?: "请求过于频繁，请稍后再试"))
+            emit(
+                NetWorkResult.Error(
+                    data,
+                    apiResponse,
+                    apiResponse.message ?: "请求过于频繁，请稍后再试"
+                )
+            )
         }
+
         else -> emit(NetWorkResult.Error(data, apiResponse, apiResponse.message ?: ""))
     }
 }

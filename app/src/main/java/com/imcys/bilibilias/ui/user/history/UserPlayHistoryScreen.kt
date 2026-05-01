@@ -26,8 +26,10 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.imcys.bilibilias.common.utils.toHttps
+import com.imcys.bilibilias.data.model.user.BILIUserHistoryPlayModel
 import com.imcys.bilibilias.ui.weight.ASTopAppBar
 import com.imcys.bilibilias.ui.weight.AsBackIconButton
 import com.imcys.bilibilias.ui.weight.BILIBILIASTopAppBarStyle
@@ -52,18 +54,17 @@ fun UserPlayHistoryScreen(userPlayHistoryRoute: UserPlayHistoryRoute, onToBack: 
         scrollBehavior = scrollBehavior,
         onToBack = onToBack
     ) {
-        UserPlayHistoryContent(vm, it)
+        UserPlayHistoryContent(vm.items.collectAsLazyPagingItems(), it)
     }
 
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun UserPlayHistoryContent(vm: UserPlayHistoryViewModel, paddingValues: PaddingValues) {
-
-    val itemList = vm.items.collectAsLazyPagingItems()
-
-
+fun UserPlayHistoryContent(
+    itemList: LazyPagingItems<BILIUserHistoryPlayModel>,
+    paddingValues: PaddingValues
+) {
     LazyVerticalGrid(
         modifier = Modifier
             .padding(paddingValues)
@@ -84,7 +85,7 @@ fun UserPlayHistoryContent(vm: UserPlayHistoryViewModel, paddingValues: PaddingV
                     modifier = Modifier.animateItem(),
                     bvId = item.history.bvid,
                     title = item.title,
-                    pic = "${item.cover.toHttps()}@672w_378h_1c",
+                    pic = "${item.cover.toHttps().width(672).height(378).crop()}",
                     upName = item.authorName,
                     mid = item.authorMid,
                     duration = item.duration,

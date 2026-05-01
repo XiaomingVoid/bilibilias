@@ -1,4 +1,4 @@
-name: Build and Upload Compose APK (Alpha)
+name: Build Compose APK (Alpha)
 
 on:
   push:
@@ -23,97 +23,16 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: '21'
+          java-version: "21"
 
-      # 使用该 Action 自带缓存；不要再叠加 actions/cache，避免 400 报错
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      # 在构建前 clean 一次即可；不要在构建后再 clean
       - name: Clean
         run: ./gradlew clean
 
-      # PR 只需验证构建成功，使用 assembleAlphaDebug
-      - name: Build APK for PR (Debug)
-        if: github.event_name == 'pull_request'
-        run: ./gradlew :app:assembleAlphaDebug --stacktrace --info
-
-      # 还原签名 (仅在非 PR 时)
-      - name: Decode signing keystore
-        if: github.event_name != 'pull_request'
-        run: |
-          printf '%s' "${{ secrets.ALPHA_KEYSTORE_BASE64 }}" | base64 -d > $RUNNER_TEMP/mxjs-debug.jks
-
-      # 验证 keystore 可读性 (仅在非 PR 时)
-      - name: Verify keystore
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "=== Keystore Verification ==="
-          keytool -list -keystore $RUNNER_TEMP/mxjs-debug.jks \
-            -storepass "${{ secrets.ALPHA_KEYSTORE_PASSWORD }}" \
-            -alias "${{ secrets.ALPHA_KEY_ALIAS }}" || {
-            echo "❌ Failed to read keystore"
-            exit 1
-          }
-          echo "✅ Keystore verified"
-
-      # 把密码注入环境变量 (仅在非 PR 时)
-      - name: Export signing secrets
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "ALPHA_KEYSTORE_PASSWORD=${{ secrets.ALPHA_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-          echo "ALPHA_KEY_ALIAS=${{ secrets.ALPHA_KEY_ALIAS }}" >> $GITHUB_ENV
-          echo "ALPHA_KEY_PASSWORD=${{ secrets.ALPHA_KEY_PASSWORD }}" >> $GITHUB_ENV
-
-      # push 到 main 或手动触发时才打包 Release 版本
       - name: Assemble alphaRelease
-        if: github.event_name != 'pull_request'
         run: ./gradlew :app:assembleAlphaRelease --stacktrace --info
-
-      - name: List outputs (debug)
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "=== Outputs under app/build/outputs/apk/alpha/release ==="
-          ls -lh app/build/outputs/apk/alpha/release/ || true
-          echo ""
-          echo "=== All APK files ==="
-          find app/build/outputs/apk -name "*.apk" -type f || true
-
-      # 上传通用 APK（包含所有 ABI）
-      - name: Upload Universal APK
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: APK-alpha-universal
-          path: app/build/outputs/apk/alpha/release/*universal*.apk
-          if-no-files-found: error
-
-      # 上传 arm64-v8a APK
-      - name: Upload arm64-v8a APK
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: APK-alpha-arm64-v8a
-          path: app/build/outputs/apk/alpha/release/*arm64-v8a*.apk
-          if-no-files-found: error
-
-      # 上传 armeabi-v7a APK
-      - name: Upload armeabi-v7a APK
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: APK-alpha-armeabi-v7a
-          path: app/build/outputs/apk/alpha/release/*armeabi-v7a*.apk
-          if-no-files-found: error
-
-      # 上传 x86_64 APK
-      - name: Upload x86_64 APK
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: APK-alpha-x86_64
-          path: app/build/outputs/apk/alpha/release/*x86_64*.apk
-          if-no-files-found: error

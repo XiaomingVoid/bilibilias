@@ -18,7 +18,8 @@ object API {
         // 获取登录二维码
         const val WEB_QRCODE_GENERATE_URL = LOGIN_BASE_URL + "x/passport-login/web/qrcode/generate"
 
-        const val TV_QRCODE_GENERATE_URL = TV_LOGIN_BASE_URL + "x/passport-tv-login/qrcode/auth_code"
+        const val TV_QRCODE_GENERATE_URL =
+            TV_LOGIN_BASE_URL + "x/passport-tv-login/qrcode/auth_code"
 
         // 检测扫码登录状态
         const val WEB_QRCODE_POLL_URL = LOGIN_BASE_URL + "x/passport-login/web/qrcode/poll"
@@ -114,5 +115,26 @@ object API {
         const val OLD_APP_INFO_URL: String = OLD_BASE_URL + "app/bilibilias.php"
 
         const val OLD_VIDEO_DATA_POST_URL = OLD_BASE_URL + "bilibili/AppVideoAsAdd.php"
+    }
+
+
+    object Bgm {
+        const val API_BASE_URL = "https://api.bgm.tv/"
+        // 放送列表
+        const val CALENDER = API_BASE_URL + "calendar"
+        // 番剧章节
+        const val GET_EPISODES= API_BASE_URL + "v0/episodes"
+
+
+        object Next {
+            const val API_BASE_URL = "https://next.bgm.tv/"
+            // 新放送列表
+            const val CALENDER = API_BASE_URL + "p1/calendar"
+            // 番剧详情
+            const val SUBJECT_DETAIL= API_BASE_URL + "p1/subjects"
+            // 番剧章节回复
+            const val EPISODES_COMMENTS = "${API_BASE_URL}p1/episodes/%d/comments"
+        }
+
     }
 }

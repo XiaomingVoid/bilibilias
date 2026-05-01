@@ -228,6 +228,22 @@ class AppSettingsRepository(
     fun storeMediaContainerFromExtension(extension: String): MediaContainer {
         return  MediaContainer.entries.first { it.extension == extension }
     }
+
+    suspend fun updateNavBackStack(navBackStackStr: String)  {
+        dataStore.updateData { currentSettings ->
+            currentSettings.copy {
+                navBackStack = navBackStackStr
+            }
+        }
+    }
+
+    suspend fun updateUnknownAppSignWarningCloseTime(closeTime: Long) {
+        dataStore.updateData { currentSettings ->
+            currentSettings.copy {
+                unknownAppSignWarningCloseTime = closeTime
+            }
+        }
+    }
 }
 
 

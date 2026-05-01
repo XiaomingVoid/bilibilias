@@ -104,7 +104,10 @@ private inline fun <reified T : KotlinBaseExtension> Project.configureKotlin() =
              * The binary signature changes. The error on the declaration is no longer reported.
              * '-Xconsistent-data-class-copy-visibility' compiler flag and ConsistentCopyVisibility annotation are now unnecessary.
              */
-            "-Xconsistent-data-class-copy-visibility"
+            "-Xconsistent-data-class-copy-visibility",
         )
+        freeCompilerArgs.add("-XXLanguage:+ContextParameters")
+        freeCompilerArgs.add("-Xexplicit-backing-fields")
+        freeCompilerArgs.add("-Xreturn-value-checker=check")
     }
 }

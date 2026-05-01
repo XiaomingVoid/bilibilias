@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -22,20 +21,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.NorthEast
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,9 +44,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation3.runtime.NavKey
+import com.imcys.bilibilias.common.event.sendSaveBackStackChannel
+import com.imcys.bilibilias.common.event.sendToastEvent
 import com.imcys.bilibilias.common.event.sendToastEventOnBlocking
 import com.imcys.bilibilias.common.utils.StorageInfoData
 import com.imcys.bilibilias.common.utils.StorageUtil
+import com.imcys.bilibilias.common.utils.restartApp
 import com.imcys.bilibilias.ui.utils.rememberWidthSizeClass
 import com.imcys.bilibilias.ui.weight.ASIconButton
 import com.imcys.bilibilias.ui.weight.ASTopAppBar
@@ -56,6 +58,8 @@ import com.imcys.bilibilias.ui.weight.BILIBILIASTopAppBarStyle
 import com.imcys.bilibilias.ui.weight.tip.ASWarringTip
 import com.imcys.bilibilias.weight.ASCommonLoadingScreen
 import com.imcys.bilibilias.weight.AnimatedStorageRing
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
@@ -72,7 +76,10 @@ fun StorageManagementScreen(
     StorageManagementScaffold(
         onToBack = onToBack,
     ) {
-        StorageManagementContent(Modifier.padding(it), onToDownloadList)
+        StorageManagementContent(
+            modifier = Modifier.padding(it),
+            onToDownloadList = onToDownloadList
+        )
     }
 }
 
@@ -83,7 +90,8 @@ fun StorageManagementContent(
 ) {
     val context = LocalContext.current
     val vm = koinViewModel<StorageManagementViewModel>()
-    val uiState by vm.uiState.collectAsState()
+    val uiState by vm.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         vm.loadStorageInfo(context)
@@ -105,8 +113,18 @@ fun StorageManagementContent(
                     vm.cleanAppCache(context)
                 },
                 onToDownloadList = onToDownloadList,
-                onSaveDownloadUri = {
-                    vm.saveDownloadUri(context, it)
+                onUpdateUriAndRestart = { uri ->
+                    scope.launch(Dispatchers.IO) {
+                        vm.saveDownloadUri(context, uri)
+                        sendToastEvent("需要重启应用以应用新的存储权限", actionLabel = "重启") {
+                            if (it == SnackbarResult.ActionPerformed) {
+                                scope.launch {
+                                    sendSaveBackStackChannel()
+                                    restartApp(context)
+                                }
+                            }
+                        }
+                    }
                 }
             )
         }
@@ -120,7 +138,7 @@ fun StorageManagementSuccessScreen(
     hasDownloadSAFPermission: Boolean,
     onCleanCache: () -> Unit,
     onToDownloadList: () -> Unit,
-    onSaveDownloadUri: (uri: Uri) -> Unit,
+    onUpdateUriAndRestart: (uri: Uri) -> Unit
 ) {
     val windowWidthSizeClass = rememberWidthSizeClass()
     val context = LocalContext.current
@@ -132,7 +150,7 @@ fun StorageManagementSuccessScreen(
                         uri,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     )
-                    onSaveDownloadUri(uri)
+                    onUpdateUriAndRestart(uri)
                 } catch (_: Exception) {
                 }
 
@@ -196,10 +214,13 @@ fun StorageManagementSuccessScreen(
             description = "已下载的音视频文件大小",
             onClick = {
                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                    val targetDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "BILIBILIAS")
+                    val targetDir = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        "BILIBILIAS"
+                    )
                         .apply {
-                        if (!exists()) mkdirs()
-                    }
+                            if (!exists()) mkdirs()
+                        }
                     val relativePath =
                         targetDir.absolutePath.substringAfter("/storage/emulated/0/")
                     val downloadUri = DocumentsContract.buildDocumentUri(

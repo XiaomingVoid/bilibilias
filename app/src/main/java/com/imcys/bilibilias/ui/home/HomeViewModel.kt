@@ -2,8 +2,11 @@ package com.imcys.bilibilias.ui.home
 
 import android.annotation.SuppressLint
 import android.content.Context
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.imcys.bilibilias.common.event.sendToastEvent
 import com.imcys.bilibilias.common.utils.AppUtils
 import com.imcys.bilibilias.data.model.BILILoginUserModel
 import com.imcys.bilibilias.data.repository.AppSettingsRepository
@@ -49,7 +52,11 @@ class HomeViewModel(
     private val appAPIService: AppAPIService
 
 ) : ViewModel() {
+    companion object {
+        const val UNKNOWN_APP_SIGN_WARNING_HIDE_DURATION_MS = 30L * 24 * 60 * 60 * 1000
+    }
 
+    @Immutable
     data class UIState(
         val fromLoginEventConsumed: Boolean = false,
         val shownAppUpdate: Boolean = false,
@@ -293,7 +300,9 @@ class HomeViewModel(
             qrCodeLoginRepository.getBILIUserListByUid(usersDataSource.getUserId())
         if (biliUserList.isEmpty()) return
 
-        val currentUser = biliUserList.first { it.id == usersDataSource.getUserId() }
+        val currentUser = biliUserList.firstOrNull { it.id == usersDataSource.getUserId() }
+            ?: biliUserList.firstOrNull()
+            ?: return
 
         qrCodeLoginRepository.getLoginUserInfo(
             currentUser.loginPlatform,
@@ -337,6 +346,15 @@ class HomeViewModel(
     fun updateUseToolRecord(tool: ToolInfo) {
         viewModelScope.launch {
             appSettingsRepository.updateUseToolRecord(tool.name)
+        }
+    }
+
+    fun closeUnknownAppSignWarning() {
+        viewModelScope.launch {
+            appSettingsRepository.updateUnknownAppSignWarningCloseTime(System.currentTimeMillis())
+            sendToastEvent("一个月后将再次提醒您","了解", onResult = {
+
+            })
         }
     }
 

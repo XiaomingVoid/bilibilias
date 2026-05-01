@@ -1,6 +1,6 @@
 package com.imcys.bilibilias.database.converter.download
 
-import androidx.room.TypeConverter
+import androidx.room3.TypeConverter
 import com.imcys.bilibilias.database.entity.download.DownloadTaskNodeType
 
 class DownloadTaskNodeTypeConverter {

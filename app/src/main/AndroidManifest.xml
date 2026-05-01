@@ -7,12 +7,13 @@
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
 
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
+<!--    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />-->
 
     <application
         android:name=".BILIBILIASApplication"
@@ -49,6 +50,27 @@
 
                 <data android:mimeType="text/*" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="bilibilias" />
+                <data android:host="app" />
+                <data android:path="/loginFinish" />
+                <data android:path="/main" />
+                <data android:path="/analysis" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="imcys"
+                    android:path="/main"
+                    android:port="2333"
+                    android:scheme="bilibilias"/>
+            </intent-filter>
         </activity>
 
         <activity
@@ -61,6 +83,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
     </application>
 

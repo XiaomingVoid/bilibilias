@@ -23,6 +23,7 @@ dependencies {
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.android.tools.common)
     compileOnly(libs.compose.gradlePlugin)
+    compileOnly(libs.kotlin.gradlePlugin)
 }
 
 tasks {
@@ -38,6 +39,7 @@ gradlePlugin {
             id = libs.plugins.bilibilias.android.application.get().pluginId
             implementationClass = "AndroidApplicationConventionPlugin"
         }
+
         register("androidLibrary") {
             id = libs.plugins.bilibilias.android.library.get().pluginId
             implementationClass = "AndroidLibraryConventionPlugin"
@@ -58,6 +60,12 @@ gradlePlugin {
         register("baiduJar"){
             id = libs.plugins.bilibilias.baidu.jar.get().pluginId
             implementationClass = "BaiduJarDownloadConventionPlugin"
+            version = "unspecified"
+        }
+
+        register("jvmLibrary"){
+            id = libs.plugins.bilibilias.jvm.library.get().pluginId
+            implementationClass = "JvmLibraryConventionPlugin"
             version = "unspecified"
         }
 
