@@ -10,6 +10,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.request
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -88,6 +89,8 @@ inline fun <reified Data> HttpClient.httpRequest(
             }
             val (data, apiResponse) = (body.data ?: body.result) to body
             handleSuccess(data, apiResponse, response)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(NetWorkResult.Error(null, null, e.message ?: ""))
         }
@@ -110,6 +113,8 @@ inline fun <reified Data> HttpClient.httpRequest(
                 val (data, apiResponse) = adapterBody.data to adapterBody
                 adapter.handleSuccess(data, apiResponse, response)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(NetWorkResult.Error(null, null, e.message ?: ""))
         }

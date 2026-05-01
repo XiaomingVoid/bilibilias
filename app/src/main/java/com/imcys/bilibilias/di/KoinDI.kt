@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.dataStoreFile
 import com.imcys.bilibilias.agent.functions.BILIAnalysisAppFunctions
+import com.imcys.bilibilias.common.shizuku.ShizukuStateManager
 import com.imcys.bilibilias.datastore.AppSettings
 import com.imcys.bilibilias.datastore.AppSettingsSerializer
 import com.imcys.bilibilias.download.DownloadExecutor
@@ -32,6 +33,7 @@ import com.imcys.bilibilias.ui.setting.storage.StorageManagementViewModel
 import com.imcys.bilibilias.ui.tools.calendar.CalendarViewModel
 import com.imcys.bilibilias.ui.tools.calendar.detail.SubjectDetailViewModel
 import com.imcys.bilibilias.ui.tools.donate.DonateViewModel
+import com.imcys.bilibilias.ui.tools.export.ExportViewModel
 import com.imcys.bilibilias.ui.tools.frame.FrameExtractorViewModel
 import com.imcys.bilibilias.ui.tools.parser.WebParserViewModel
 import com.imcys.bilibilias.ui.user.UserViewModel
@@ -55,7 +57,6 @@ val appModule = module {
             androidContext().dataStoreFile("app_setting.pb")
         }
     }
-    viewModelOf(::HomeViewModel)
     viewModelOf(::HomeViewModel)
     viewModelOf(::QRCodeLoginViewModel)
     viewModelOf(::BILIBILIASAppViewModel)
@@ -82,7 +83,9 @@ val appModule = module {
     viewModelOf(::ParsePlatformViewModel)
     viewModelOf(::CalendarViewModel)
     viewModelOf(::SubjectDetailViewModel)
+    viewModelOf(::ExportViewModel)
 
+    single { ShizukuStateManager(androidContext()) }
     single { VideoInfoFetcher(get(), get(), get()) }
     single { FileOutputManager(androidApplication()) }
     single { DownloadExecutor(get(qualifier = named("DownloadHttpClient")), get()) }

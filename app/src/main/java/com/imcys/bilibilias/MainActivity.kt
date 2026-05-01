@@ -20,9 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -80,18 +78,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            var enabledDynamicColor by remember { mutableStateOf(false) }
             val updateSnackBarHostState = remember { SnackbarHostState() }
+            val enabledDynamicColor by appSettingsFlow.collectAsStateWithLifecycle(
+                initialValue = AppSettings.getDefaultInstance()
+            )
+            val showUpdateSnackBarState by showUpdateSnackBar.collectAsStateWithLifecycle()
             val showSkipVersionState by showSkipVersion.collectAsStateWithLifecycle()
 
-            LaunchedEffect(Unit) {
-                appSettingsFlow.collect {
-                    enabledDynamicColor = it.enabledDynamicColor
-                }
-            }
-
-            LaunchedEffect(showUpdateSnackBar) {
-                if (!showUpdateSnackBar.value) return@LaunchedEffect
+            LaunchedEffect(showUpdateSnackBarState) {
+                if (!showUpdateSnackBarState) return@LaunchedEffect
                 val result = updateSnackBarHostState.showSnackbar(
                     message = getString(R.string.update_downloaded),
                     actionLabel = getString(R.string.update_action),
@@ -109,7 +104,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            BILIBILIASTheme(dynamicColor = enabledDynamicColor) {
+            BILIBILIASTheme(dynamicColor = enabledDynamicColor.enabledDynamicColor) {
                 Box {
                     BILIBILIASAppScreen()
                     SnackbarHost(

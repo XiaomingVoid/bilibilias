@@ -85,6 +85,8 @@ import com.imcys.bilibilias.ui.tools.calendar.detail.SubjectDetailRoute
 import com.imcys.bilibilias.ui.tools.calendar.detail.SubjectDetailScreen
 import com.imcys.bilibilias.ui.tools.donate.DonateRoute
 import com.imcys.bilibilias.ui.tools.donate.DonateScreen
+import com.imcys.bilibilias.ui.tools.export.ExportRoute
+import com.imcys.bilibilias.ui.tools.export.ExportScreen
 import com.imcys.bilibilias.ui.tools.frame.FrameExtractorRoute
 import com.imcys.bilibilias.ui.tools.frame.FrameExtractorScreen
 import com.imcys.bilibilias.ui.tools.parser.WebParserRoute
@@ -530,6 +532,12 @@ fun BILIBILAISNavDisplay() {
                 entry<SubjectDetailRoute> {
                     SubjectDetailScreen(
                         subjectDetailRoute = it,
+                        onToBack = onBack
+                    )
+                }
+                entry<ExportRoute> {
+                    ExportScreen(
+                        exportRoute = it,
                         onToBack = onBack
                     )
                 }

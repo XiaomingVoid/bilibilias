@@ -62,6 +62,7 @@ import com.imcys.bilibilias.common.utils.openLink
 import com.imcys.bilibilias.ui.home.navigation.HomeRoute
 import com.imcys.bilibilias.ui.tools.calendar.CalendarRoute
 import com.imcys.bilibilias.ui.tools.donate.DonateRoute
+import com.imcys.bilibilias.ui.tools.export.ExportRoute
 import com.imcys.bilibilias.ui.tools.frame.FrameExtractorRoute
 import com.imcys.bilibilias.ui.tools.parser.WebParserRoute
 import com.imcys.bilibilias.ui.weight.ASAlertDialog
@@ -115,6 +116,12 @@ enum class ToolInfo(
         icon = Icons.Outlined.CalendarToday,
         navKey = CalendarRoute
     ),
+    Export(
+        title = "导出缓存",
+        desc = "可导出已在APP内下载缓存视频。",
+        iconRes = R.drawable.outline_file_export_24,
+        navKey = ExportRoute
+    ),
     // 反馈问题
     Feedback(
         title = "反馈问题",
@@ -140,7 +147,7 @@ private fun ToolsContent(
     var showFeedbackDialog by remember { mutableStateOf(false) }
 
     val videoTools = listOf(
-        ToolInfo.FrameExtractor
+        ToolInfo.FrameExtractor,
     )
     val parserTools = listOf(
         ToolInfo.Calendar,

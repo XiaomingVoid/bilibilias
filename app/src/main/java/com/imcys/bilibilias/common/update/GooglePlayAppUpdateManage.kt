@@ -1,7 +1,6 @@
 package com.imcys.bilibilias.common.update
 
 import android.content.Context
-import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import com.google.android.play.core.appupdate.AppUpdateManager
@@ -11,15 +10,10 @@ import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
-import com.google.android.play.core.ktx.clientVersionStalenessDays
 import com.imcys.bilibilias.data.repository.AppSettingsRepository
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
 
-
-@OptIn(DelicateCoroutinesApi::class)
 class GooglePlayAppUpdateManage(
     context: Context,
     private val appSettingsRepository: AppSettingsRepository
@@ -27,19 +21,6 @@ class GooglePlayAppUpdateManage(
     private var appUpdateManager: AppUpdateManager = AppUpdateManagerFactory.create(context)
 
     private var lastAppUpdateType = AppUpdateType.FLEXIBLE
-
-
-    private val appSettingsFlow = appSettingsRepository.appSettingsFlow
-
-    private var lastSkipUpdateVersionCode = 0
-
-    init {
-        GlobalScope.launch {
-            appSettingsFlow.collect {
-                lastSkipUpdateVersionCode = it.lastSkipUpdateVersionCode
-            }
-        }
-    }
 
     override suspend fun checkAppImmediateUpdate(): Boolean {
         return checkUpdateAvailability(AppUpdateType.IMMEDIATE)
@@ -94,24 +75,24 @@ class GooglePlayAppUpdateManage(
 
     private suspend fun checkUpdateAvailability(updateType: Int): Boolean {
         val appUpdateInfoTask = appUpdateManager.appUpdateInfo
+        val lastSkipUpdateVersionCode = appSettingsRepository.appSettingsFlow
+            .first()
+            .lastSkipUpdateVersionCode
         return suspendCancellableCoroutine { cont ->
             appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
+                val versionCode = appUpdateInfo.availableVersionCode()
+                if (lastSkipUpdateVersionCode == versionCode) {
+                    cont.resumeWith(Result.success(false))
+                    return@addOnSuccessListener
+                }
 
-                apply {
-                    val versionCode = appUpdateInfo.availableVersionCode()
-                    if (lastSkipUpdateVersionCode == versionCode) {
-                        cont.resumeWith(Result.success(false))
-                        return@apply
-                    }
-
-                    if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
-                        && appUpdateInfo.isUpdateTypeAllowed(updateType)
-                    ) {
-                        lastAppUpdateType = updateType
-                        cont.resumeWith(Result.success(true))
-                    } else {
-                        cont.resumeWith(Result.success(false))
-                    }
+                if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+                    && appUpdateInfo.isUpdateTypeAllowed(updateType)
+                ) {
+                    lastAppUpdateType = updateType
+                    cont.resumeWith(Result.success(true))
+                } else {
+                    cont.resumeWith(Result.success(false))
                 }
             }
         }
