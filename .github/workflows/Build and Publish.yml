@@ -1,0 +1,49 @@
+name: Android Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*' # 当你推送到以 v 开头的标签（如 v1.0.0）时触发发布
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17' # 根据项目需求调整版本
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # 构建 APK (Release版本)
+      - name: Build with Gradle
+        run: ./gradlew assembleRelease
+
+      # 签名 APK (如果项目没有配置自动签名，这一步很重要)
+      # 如果你已有签名配置，可以跳过此步直接定位文件
+      
+      - name: Get APK Path
+        id: apk-path
+        run: |
+          # 自动寻找生成的 apk 文件路径
+          echo "path=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)" >> $GITHUB_OUTPUT
+
+      # 自动创建 GitHub Release 并上传文件
+      - name: Release APK
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{ steps.apk-path.outputs.path }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true # 自动根据 commit 生成更新日志
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
