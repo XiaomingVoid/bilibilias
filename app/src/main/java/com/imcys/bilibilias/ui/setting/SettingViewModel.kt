@@ -4,14 +4,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.app
+import com.imcys.bilibilias.BuildConfig
+import com.imcys.bilibilias.data.model.github.GithubCodeVersionUpdateInfo
 import com.imcys.bilibilias.data.repository.AppSettingsRepository
+import com.imcys.bilibilias.data.repository.GithubInfoRepository
 import com.imcys.bilibilias.data.repository.UserInfoRepository
 import com.imcys.bilibilias.database.dao.BILIUserCookiesDao
 import com.imcys.bilibilias.database.dao.BILIUsersDao
 import com.imcys.bilibilias.datastore.AppSettings
 import com.imcys.bilibilias.datastore.source.UsersDataSource
+import com.imcys.bilibilias.network.ApiStatus
 import com.imcys.bilibilias.network.AsCookiesStorage
-import com.imcys.bilibilias.network.model.video.Subtitle
+import com.imcys.bilibilias.network.NetWorkResult
+import com.imcys.bilibilias.network.emptyNetWorkResult
+import com.imcys.bilibilias.network.model.github.GithubCommit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,13 +30,17 @@ class SettingViewModel(
     private val biliUsersDao: BILIUsersDao,
     private val biliUserCookiesDao: BILIUserCookiesDao,
     private val userInfoRepository: UserInfoRepository,
-    private val asCookiesStorage: AsCookiesStorage
+    private val asCookiesStorage: AsCookiesStorage,
+    private val githubInfoRepository: GithubInfoRepository
 ) : ViewModel() {
 
     val appSettings = appSettingsRepository.appSettingsFlow
 
     private val _uiState = MutableStateFlow(SettingUIState())
     val uiState = _uiState.asStateFlow()
+
+    val lastGitCommitInfo: StateFlow<NetWorkResult<GithubCodeVersionUpdateInfo>>
+        field = MutableStateFlow<NetWorkResult<GithubCodeVersionUpdateInfo>>(emptyNetWorkResult())
 
     init {
         viewModelScope.launch {
@@ -44,6 +54,18 @@ class SettingViewModel(
                     isLogin = it.currentUserId != 0L,
                     currentMid = mid
                 )
+            }
+        }
+        loadGitInfo()
+    }
+
+    private fun loadGitInfo() {
+        viewModelScope.launch {
+            githubInfoRepository.getLastCommitInfo(
+                BuildConfig.GITHUB_ORG,
+                BuildConfig.GITHUB_REPOSITORY
+            ).collect {
+                lastGitCommitInfo.value = it
             }
         }
     }
@@ -62,6 +84,17 @@ class SettingViewModel(
         }
     }
 
+    fun updateEnabledOnBackInvokedCallback(enabled: Boolean){
+        viewModelScope.launch {
+            appSettingsRepository.updateEnabledOnBackInvokedCallback(enabled)
+        }
+    }
+
+    fun updateEnabledNavAnimation(enabled: Boolean){
+        viewModelScope.launch {
+            appSettingsRepository.updateEnabledNavAnimation(enabled)
+        }
+    }
     fun updateClipboardAutoHandling(enabled: Boolean) {
         viewModelScope.launch {
             appSettingsRepository.updateClipboardAutoHandling(enabled)
