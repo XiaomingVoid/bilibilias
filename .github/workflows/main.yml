@@ -24,6 +24,7 @@ jobs:
         with:
           distribution: zulu
           java-version: '21'
+          cache: gradle
 
       # 使用该 Action 自带缓存；不要再叠加 actions/cache，避免 400 报错
       - name: Setup Gradle
@@ -41,13 +42,16 @@ jobs:
         if: github.event_name == 'pull_request'
         run: ./gradlew :app:assembleAlphaDebug --stacktrace --info
 
-      # push 到 main 或手动触发时才打包 Release 版本 (无签名)
+      # push 到 main 或手动触发时才打包 Release 版本
       - name: Assemble alphaRelease
         if: github.event_name != 'pull_request'
         run: ./gradlew :app:assembleAlphaRelease --stacktrace --info
+        env:
+          GRADLE_OPTS: "-Xmx2048m"
 
-      - name: List outputs (debug)
-        if: github.event_name != 'pull_request'
+      # === 列出构建产物 ===
+      - name: List APK outputs
+        if: always()
         run: |
           echo "=== Outputs under app/build/outputs/apk/alpha/release ==="
           ls -lh app/build/outputs/apk/alpha/release/ || true
@@ -55,38 +59,95 @@ jobs:
           echo "=== All APK files ==="
           find app/build/outputs/apk -name "*.apk" -type f || true
 
-      # 上传通用 APK（包含所有 ABI）
-      - name: Upload Universal APK
+      # === 验证 APK 是否存在 ===
+      - name: Verify APK files
         if: github.event_name != 'pull_request'
+        id: verify
+        run: |
+          UNIVERSAL_COUNT=$(find app/build/outputs/apk/alpha/release -name "*universal*.apk" -type f | wc -l)
+          ARM64_COUNT=$(find app/build/outputs/apk/alpha/release -name "*arm64-v8a*.apk" -type f | wc -l)
+          ARMV7_COUNT=$(find app/build/outputs/apk/alpha/release -name "*armeabi-v7a*.apk" -type f | wc -l)
+          X86_64_COUNT=$(find app/build/outputs/apk/alpha/release -name "*x86_64*.apk" -type f | wc -l)
+          
+          echo "universal_count=$UNIVERSAL_COUNT" >> $GITHUB_OUTPUT
+          echo "arm64_count=$ARM64_COUNT" >> $GITHUB_OUTPUT
+          echo "armv7_count=$ARMV7_COUNT" >> $GITHUB_OUTPUT
+          echo "x86_64_count=$X86_64_COUNT" >> $GITHUB_OUTPUT
+          
+          TOTAL=$((UNIVERSAL_COUNT + ARM64_COUNT + ARMV7_COUNT + X86_64_COUNT))
+          echo "total_count=$TOTAL" >> $GITHUB_OUTPUT
+          
+          if [ $TOTAL -eq 0 ]; then
+            echo "❌ 错误：未找到任何 APK 文件"
+            exit 1
+          fi
+          
+          echo "✅ APK 验证成功："
+          echo "  Universal: $UNIVERSAL_COUNT"
+          echo "  ARM64-v8a: $ARM64_COUNT"
+          echo "  ARMv7: $ARMV7_COUNT"
+          echo "  x86_64: $X86_64_COUNT"
+          echo "  总计: $TOTAL"
+
+      # === 上传通用 APK（包含所有 ABI） ===
+      - name: Upload Universal APK
+        if: github.event_name != 'pull_request' && steps.verify.outputs.universal_count > 0
         uses: actions/upload-artifact@v4
         with:
           name: APK-alpha-universal
           path: app/build/outputs/apk/alpha/release/*universal*.apk
           if-no-files-found: error
+          retention-days: 30
 
-      # 上传 arm64-v8a APK
+      # === 上传 arm64-v8a APK ===
       - name: Upload arm64-v8a APK
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.verify.outputs.arm64_count > 0
         uses: actions/upload-artifact@v4
         with:
           name: APK-alpha-arm64-v8a
           path: app/build/outputs/apk/alpha/release/*arm64-v8a*.apk
           if-no-files-found: error
+          retention-days: 30
 
-      # 上传 armeabi-v7a APK
+      # === 上传 armeabi-v7a APK ===
       - name: Upload armeabi-v7a APK
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.verify.outputs.armv7_count > 0
         uses: actions/upload-artifact@v4
         with:
           name: APK-alpha-armeabi-v7a
           path: app/build/outputs/apk/alpha/release/*armeabi-v7a*.apk
           if-no-files-found: error
+          retention-days: 30
 
-      # 上传 x86_64 APK
+      # === 上传 x86_64 APK ===
       - name: Upload x86_64 APK
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.verify.outputs.x86_64_count > 0
         uses: actions/upload-artifact@v4
         with:
           name: APK-alpha-x86_64
           path: app/build/outputs/apk/alpha/release/*x86_64*.apk
           if-no-files-found: error
+          retention-days: 30
+
+      # === 汇总通知 ===
+      - name: Build Summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "✅ PR 构建成功 - 验证编译通过"
+            else
+              echo "✅ Alpha 构建成功"
+              echo "📦 生成了 ${{ steps.verify.outputs.total_count }} 个 APK 文件"
+              echo ""
+              echo "📊 详细信息："
+              echo "  Universal: ${{ steps.verify.outputs.universal_count }}"
+              echo "  ARM64-v8a: ${{ steps.verify.outputs.arm64_count }}"
+              echo "  ARMv7: ${{ steps.verify.outputs.armv7_count }}"
+              echo "  x86_64: ${{ steps.verify.outputs.x86_64_count }}"
+            fi
+          else
+            echo "❌ 构建失败"
+            echo "Event: ${{ github.event_name }}"
+            echo "Ref: ${{ github.ref }}"
+          fi
