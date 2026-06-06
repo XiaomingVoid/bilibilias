@@ -28,6 +28,7 @@ jobs:
         with:
           distribution: zulu
           java-version: "21"
+          cache: gradle
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
@@ -40,20 +41,138 @@ jobs:
 
       - name: Assemble alphaRelease
         run: ./gradlew :app:assembleAlphaRelease --stacktrace --info
+        env:
+          GRADLE_OPTS: "-Xmx2048m"
 
-      # === 新增：获取当前时间，用于生成唯一的 Tag ===
+      # === 构建验证：列出生成的 APK 文件 ===
+      - name: List APK outputs (Debug)
+        if: always()
+        run: |
+          echo "=== APK 输出目录结构 ==="
+          find app/build/outputs/apk -type d || true
+          echo ""
+          echo "=== 所有生成的 APK 文件 ==="
+          find app/build/outputs/apk -name "*.apk" -type f -exec ls -lh {} \; || true
+
+      # === 验证 APK 是否存在 ===
+      - name: Verify APK exists
+        id: apk-check
+        run: |
+          APK_COUNT=$(find app/build/outputs/apk/alpha/release -name "*.apk" -type f | wc -l)
+          echo "apk_count=$APK_COUNT" >> $GITHUB_OUTPUT
+          if [ $APK_COUNT -eq 0 ]; then
+            echo "❌ 错误：未找到 APK 文件"
+            find app/build/outputs -type d | head -20
+            exit 1
+          fi
+          echo "✅ 找到 $APK_COUNT 个 APK 文件"
+          find app/build/outputs/apk/alpha/release -name "*.apk" -type f | while read f; do
+            echo "  - $(basename $f) ($(du -h $f | cut -f1))"
+          done
+
+      # === 跳过 PR 的发布步骤 ===
+      - name: Decide Release Strategy
+        id: release-strategy
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "event_type=pr" >> $GITHUB_OUTPUT
+            echo "📋 PR 构建：仅验证编译成功，跳过 Release 发布"
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            echo "event_type=push" >> $GITHUB_OUTPUT
+            echo "🚀 Push 构建：将上传 APK 到 GitHub Release"
+          else
+            echo "event_type=dispatch" >> $GITHUB_OUTPUT
+            echo "🎯 手动触发：将上传 APK 到 GitHub Release"
+          fi
+
+      # === 获取当前时间，用于生成唯一的 Tag ===
       - name: Get current date
         id: date
+        if: steps.release-strategy.outputs.event_type != 'pr'
         run: echo "date=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
 
-      # === 新增：自动发布到 GitHub Release ===
+      # === 获取提交信息（用于 Release 描述） ===
+      - name: Get commit info
+        id: commit-info
+        if: steps.release-strategy.outputs.event_type != 'pr'
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "author=$COMMIT_AUTHOR" >> $GITHUB_OUTPUT
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      # === 上传 APK 到 GitHub Artifacts（所有情况都上传） ===
+      - name: Upload APK to Artifacts
+        if: steps.apk-check.outputs.apk_count > 0
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK-alpha-${{ github.run_number }}
+          path: app/build/outputs/apk/alpha/release/*.apk
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
+
+      # === 自动发布到 GitHub Release（仅限 push 和 dispatch） ===
       - name: Create Release and Upload APK
+        if: steps.release-strategy.outputs.event_type != 'pr' && steps.apk-check.outputs.apk_count > 0
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: alpha-${{ steps.date.outputs.date }}-${{ github.sha }}
-          name: Alpha Build (${{ steps.date.outputs.date }})
+          tag_name: alpha-${{ steps.date.outputs.date }}-${{ steps.commit-info.outputs.short_sha }}
+          name: "Alpha Build - ${{ steps.date.outputs.date }}"
+          body: |
+            ## 📱 Alpha Build Release
+
+            **Build Time**: ${{ steps.date.outputs.date }}
+            **Commit**: [${{ steps.commit-info.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            **Author**: ${{ steps.commit-info.outputs.author }}
+
+            ### Commit Message
+            ```
+            ${{ steps.commit-info.outputs.message }}
+            ```
+
+            ### 📦 APK Information
+            - **APK Count**: ${{ steps.apk-check.outputs.apk_count }}
+            - **Flavor**: alpha
+            - **Build Type**: release
+            - **Supported ABIs**: armeabi-v7a, arm64-v8a, x86_64, universal
+
+            ### 🔗 Workflow Run
+            [View on GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            ---
+            *This is an automated Alpha build. Use at your own risk.*
           draft: false
           prerelease: true # 标记为预发布版本（适合 Alpha）
-          # 核心：指定你要上传的 APK 路径，支持通配符（请根据你项目的实际输出路径微调）
           files: |
             app/build/outputs/apk/alpha/release/*.apk
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # === 构建失败通知 ===
+      - name: Build Failure Summary
+        if: failure()
+        run: |
+          echo "❌ 构建失败"
+          echo "Workflow: ${{ github.workflow }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+
+      # === 构建成功通知 ===
+      - name: Build Success Summary
+        if: success()
+        run: |
+          if [ "${{ steps.release-strategy.outputs.event_type }}" == "pr" ]; then
+            echo "✅ PR 构建成功！已验证编译"
+            echo "APK 已上传到 Artifacts：APK-alpha-${{ github.run_number }}"
+          else
+            echo "✅ 构建和发布成功！"
+            echo "Release: alpha-${{ steps.date.outputs.date }}-${{ steps.commit-info.outputs.short_sha }}"
+            echo "Tag URL: https://github.com/${{ github.repository }}/releases/tag/alpha-${{ steps.date.outputs.date }}-${{ steps.commit-info.outputs.short_sha }}"
+          fi
