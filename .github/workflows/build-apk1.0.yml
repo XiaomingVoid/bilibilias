@@ -1,0 +1,59 @@
+name: Build Compose APK (Alpha)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 必须添加 permissions 权限，否则 Action 没有权限创建 Release
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "21"
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Clean
+        run: ./gradlew clean
+
+      - name: Assemble alphaRelease
+        run: ./gradlew :app:assembleAlphaRelease --stacktrace --info
+
+      # === 新增：获取当前时间，用于生成唯一的 Tag ===
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      # === 新增：自动发布到 GitHub Release ===
+      - name: Create Release and Upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: alpha-${{ steps.date.outputs.date }}-${{ github.sha }}
+          name: Alpha Build (${{ steps.date.outputs.date }})
+          draft: false
+          prerelease: true # 标记为预发布版本（适合 Alpha）
+          # 核心：指定你要上传的 APK 路径，支持通配符（请根据你项目的实际输出路径微调）
+          files: |
+            app/build/outputs/apk/alpha/release/*.apk
