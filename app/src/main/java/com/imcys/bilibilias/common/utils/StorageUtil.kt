@@ -12,10 +12,11 @@ import android.os.storage.StorageVolume
 import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.documentfile.provider.DocumentFile
-import com.imcys.bilibilias.datastore.AppSettings
+import com.imcys.bilibilias.datastore.*
 import kotlinx.coroutines.flow.first
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.koin.core.qualifier.named
 import java.io.File
 import java.util.UUID
 
@@ -30,7 +31,9 @@ data class StorageInfoData(
 
 object StorageUtil: KoinComponent {
 
-    private val appSettingsStore: DataStore<AppSettings> by inject()
+    private val appSettingsStore: DataStore<AppSettings> by inject(
+        qualifier = named("app_settings_datastore")
+    )
 
     /**
      * 获取文件夹占用空间（递归统计）

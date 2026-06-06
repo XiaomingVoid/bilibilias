@@ -1,17 +1,21 @@
 plugins {
-    alias(libs.plugins.bilibilias.android.library)
-    alias(libs.plugins.bilibilias.android.koin)
+    alias(libs.plugins.bilibilias.multiplatform.library)
+    alias(libs.plugins.bilibilias.multiplatform.koin)
 }
 
+kotlin {
+    android {
+        namespace = "com.imcys.bilibilias.datastore"
+    }
 
-android {
-    namespace = "com.imcys.bilibilias.datastore"
-}
+    iosArm64()
+    iosSimulatorArm64()
 
-
-dependencies {
-    api(libs.protobuf.kotlin.lite)
-    api(libs.androidx.datastore)
-    api(libs.androidx.datastore.core)
-    api(project(":core:datastore-proto"))
+    sourceSets {
+        commonMain.dependencies {
+            api(libs.androidx.datastore.core)
+            api(libs.androidx.datastore.core.okio)
+            api(project(":core:datastore-proto"))
+        }
+    }
 }

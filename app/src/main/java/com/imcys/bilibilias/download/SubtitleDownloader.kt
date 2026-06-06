@@ -1,8 +1,8 @@
 package com.imcys.bilibilias.download
 
 import android.app.Application
-import com.imcys.bilibilias.common.utils.download.CCJsonToAss
-import com.imcys.bilibilias.common.utils.download.CCJsonToSrt
+import com.imcys.bilibilias.shared.download.util.CCJsonToAss
+import com.imcys.bilibilias.shared.download.util.CCJsonToSrt
 import com.imcys.bilibilias.common.utils.toHttps
 import com.imcys.bilibilias.data.model.download.CCFileType
 import com.imcys.bilibilias.data.model.download.lowercase
@@ -10,6 +10,7 @@ import com.imcys.bilibilias.data.repository.VideoInfoRepository
 import com.imcys.bilibilias.network.NetWorkResult
 import com.imcys.bilibilias.network.model.video.BILIVideoCCInfo
 import com.imcys.bilibilias.network.model.video.BILIVideoPlayerInfoV2
+import com.imcys.bilibilias.shared.download.model.LocalSubtitle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File

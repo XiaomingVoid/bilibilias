@@ -4,7 +4,16 @@
 
 ## 总览
 
-当前 Room 数据库由 `BILIBILIASDatabase` 提供，主要存三类数据：
+当前数据库由 `core:database` 模块中的 Room 3 定义提供，模块已经按 Kotlin Multiplatform 组织：
+
+- `src/commonMain`
+  - 放实体、DAO、migration、type converter、数据库定义
+- `src/androidMain`
+  - 放 Android 数据库 builder 和 Koin 注入
+- `src/iosMain`
+  - 放 iOS 数据库 builder
+
+当前主要存三类数据：
 
 - 登录用户
 - 用户 Cookie
@@ -25,7 +34,7 @@
 
 ## Database 定义
 
-文件：`core/database/src/main/java/com/imcys/bilibilias/database/BILIBILIASDatabase.kt`
+文件：`core/database/src/commonMain/kotlin/com/imcys/bilibilias/database/BILIBILIASDatabase.kt`
 
 当前数据库版本：
 
@@ -135,7 +144,7 @@ DAO：
 
 ### `DownloadTask`
 
-文件：`core/database/src/main/java/com/imcys/bilibilias/database/entity/download/DownloadTask.kt`
+文件：`core/database/src/commonMain/kotlin/com/imcys/bilibilias/database/entity/download/DownloadTask.kt`
 
 主要字段：
 
@@ -155,6 +164,8 @@ DAO：
   - 顶层任务的外部平台标识，例如 `bvid`、season id、合集 id
 - `type`
   - 区分普通视频、番剧、合集等顶层任务类型
+- `createTime` / `updateTime`
+  - 使用 `Long` 时间戳存储，保持 `commonMain` 可跨平台复用，同时不改变 Room 中的整数列语义
 
 ### `DownloadTaskNode`
 
@@ -327,7 +338,7 @@ DAO：
 
 ## DAO 设计
 
-文件：`core/database/src/main/java/com/imcys/bilibilias/database/dao/DownloadTaskDao.kt`
+文件：`core/database/src/commonMain/kotlin/com/imcys/bilibilias/database/dao/DownloadTaskDao.kt`
 
 ### 查询能力
 
@@ -415,7 +426,7 @@ DAO 没有简单直接暴露裸 `update`，而是包装了：
 
 ## Migration 设计
 
-文件：`core/database/src/main/java/com/imcys/bilibilias/database/Migration.kt`
+文件：`core/database/src/commonMain/kotlin/com/imcys/bilibilias/database/Migration.kt`
 
 当前已有迁移：
 

@@ -11,7 +11,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.annotation.RequiresPermission
-import com.imcys.bilibilias.common.utils.download.DanmakuXmlUtil
+import com.imcys.bilibilias.shared.download.util.DanmakuXmlUtil
 import com.imcys.bilibilias.common.utils.toHttps
 import com.imcys.bilibilias.data.model.download.DownloadSubTask
 import com.imcys.bilibilias.data.model.download.DownloadTaskTree
@@ -22,6 +22,7 @@ import com.imcys.bilibilias.data.model.video.ASLinkResultType
 import com.imcys.bilibilias.data.repository.AppSettingsRepository
 import com.imcys.bilibilias.data.repository.DownloadTaskRepository
 import com.imcys.bilibilias.data.repository.VideoInfoRepository
+import com.imcys.bilibilias.datastore.*
 import com.imcys.bilibilias.database.entity.download.DownloadMode
 import com.imcys.bilibilias.database.entity.download.DownloadSegment
 import com.imcys.bilibilias.database.entity.download.DownloadStage
@@ -33,6 +34,11 @@ import com.imcys.bilibilias.database.entity.download.NamingConventionInfo
 import com.imcys.bilibilias.download.service.DownloadService
 import com.imcys.bilibilias.network.model.video.BILIVideoDash
 import com.imcys.bilibilias.network.model.video.BILIVideoDurl
+import com.imcys.bilibilias.shared.download.model.AppDownloadTask
+import com.imcys.bilibilias.shared.download.naming.NamingConventionHandler
+import com.imcys.bilibilias.shared.download.runtime.SharedDownloadExecutor
+import com.imcys.bilibilias.shared.download.runtime.SharedDownloadManager
+import com.imcys.bilibilias.shared.download.model.TaskRuntimeInfo
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsBytes
@@ -74,16 +80,19 @@ class NewDownloadManager(
     // 重构后的组件
     private val videoInfoFetcher: VideoInfoFetcher,
     private val fileOutputManager: FileOutputManager,
-    private val downloadExecutor: DownloadExecutor,
+    private val downloadExecutor: SharedDownloadExecutor,
     private val ffmpegMerger: FfmpegMerger,
     private val namingConventionHandler: NamingConventionHandler,
     private val subtitleDownloader: SubtitleDownloader
-) {
+) : SharedDownloadManager {
     companion object {
         private const val DEFAULT_MAX_CONCURRENT_DOWNLOADS = 1
         private const val QUEUE_CHECK_INTERVAL_MS = 1000L
 
-        suspend fun buildRefererUrl(downloadTaskRepository: DownloadTaskRepository, task: AppDownloadTask): String {
+        suspend fun buildRefererUrl(
+            downloadTaskRepository: DownloadTaskRepository,
+            task: AppDownloadTask
+        ): String {
             return when (task.downloadTask.type) {
                 DownloadTaskType.BILI_VIDEO,
                 DownloadTaskType.BILI_DONGHUA -> {
@@ -96,7 +105,8 @@ class NewDownloadManager(
                 }
 
                 DownloadTaskType.BILI_VIDEO_SECTION if task.downloadSegment.taskId != 0L -> {
-                    val realTask = downloadTaskRepository.getTaskById(task.downloadSegment.taskId ?: 0L)
+                    val realTask =
+                        downloadTaskRepository.getTaskById(task.downloadSegment.taskId ?: 0L)
                     "https://www.bilibili.com/video/${realTask?.platformId}"
                 }
 
@@ -127,7 +137,7 @@ class NewDownloadManager(
         }
     }
 
-    suspend fun initDownloadList() {
+    override suspend fun initDownloadList() {
         if (isInit) return
         isInit = true
 
@@ -147,7 +157,7 @@ class NewDownloadManager(
         }
     }
 
-    fun getAllDownloadTasks(): StateFlow<List<AppDownloadTask>> = _downloadTasks.asStateFlow()
+    override fun getAllDownloadTasks(): StateFlow<List<AppDownloadTask>> = _downloadTasks.asStateFlow()
 
     fun getDownloadTask(segmentId: Long): Flow<AppDownloadTask?> {
         return _downloadTasks.map { tasks ->
@@ -155,7 +165,7 @@ class NewDownloadManager(
         }
     }
 
-    suspend fun addDownloadTask(
+    override suspend fun addDownloadTask(
         asLinkResultType: ASLinkResultType,
         downloadViewInfo: DownloadViewInfo
     ) {
@@ -173,7 +183,7 @@ class NewDownloadManager(
         }
     }
 
-    suspend fun pauseTask(segmentId: Long) {
+    override suspend fun pauseTask(segmentId: Long) {
         val task = findTaskById(segmentId) ?: return
         if (!task.downloadState.canPause()) return
 
@@ -182,7 +192,7 @@ class NewDownloadManager(
         downloadTaskRepository.updateSegment(task.downloadSegment.copy(downloadState = DownloadState.PAUSE))
     }
 
-    suspend fun cancelTask(segmentId: Long) {
+    override suspend fun cancelTask(segmentId: Long) {
         val task = findTaskById(segmentId) ?: return
 
         cancelActiveJob(segmentId)
@@ -193,7 +203,7 @@ class NewDownloadManager(
     }
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
-    suspend fun resumeTask(segmentId: Long) {
+    override suspend fun resumeTask(segmentId: Long) {
         val task = findTaskById(segmentId) ?: return
         if (task.downloadState != DownloadState.PAUSE) return
 
@@ -220,7 +230,7 @@ class NewDownloadManager(
         pausedTasks.forEach { resumeTask(it.downloadSegment.segmentId) }
     }
 
-    suspend fun downloadImageToAlbum(imageUrl: String, fileName: String, saveDirName: String) =
+    override suspend fun downloadImageToAlbum(imageUrl: String, fileName: String, saveDirName: String) =
         withContext(Dispatchers.IO) {
             val response = okHttpClient.newCall(
                 okhttp3.Request.Builder().url(imageUrl).build()
@@ -636,7 +646,6 @@ class NewDownloadManager(
     }
 
 
-
     private fun getMimeType(
         mode: DownloadMode,
         mediaContainerConfig: MediaContainerConfig
@@ -973,6 +982,5 @@ class NewDownloadManager(
             .maxConcurrentDownloads
             .coerceAtLeast(DEFAULT_MAX_CONCURRENT_DOWNLOADS)
     }
-
 
 }

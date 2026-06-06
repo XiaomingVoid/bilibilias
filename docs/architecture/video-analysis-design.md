@@ -22,7 +22,7 @@
 
 ## 解析入口
 
-文件：`app/src/main/java/com/imcys/bilibilias/ui/analysis/AnalysisViewModel.kt`
+文件：`shared/src/commonMain/kotlin/com/imcys/bilibilias/shared/feature/analysis/AnalysisViewModel.kt`
 
 页面输入通过：
 

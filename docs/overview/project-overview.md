@@ -28,7 +28,7 @@ BILIBILIAS 是一款第三方 B 站视频缓存工具，面向离线播放、学
 - AndroidX Navigation 3，使用可序列化 back stack 做恢复。
 - Koin 作为依赖注入框架。
 - Ktor + kotlinx.serialization 作为网络层基础。
-- Room 3、DataStore、protobuf-lite 作为本地数据基础。
+- Room 3、DataStore、Wire protobuf 作为本地数据基础。
 - Gradle Kotlin DSL、version catalog、includeBuild `build-logic` 约定插件。
 - Firebase、百度统计、Google Play 相关库通过构建开关和 flavor 组合启用或降级为 `compileOnly`。
 

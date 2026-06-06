@@ -1,21 +1,43 @@
 plugins {
-    alias(libs.plugins.bilibilias.android.library)
+    alias(libs.plugins.bilibilias.multiplatform.library)
+    alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.kotlin.compose)
 }
 
-android {
-    namespace = "com.imcys.bilibilias.ui"
-    defaultConfig {
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+kotlin {
+    android {
+        namespace = "com.imcys.bilibilias.ui"
     }
-}
 
-dependencies {
-    api(platform(libs.androidx.compose.bom))
-    api(libs.bundles.compose)
-    api(libs.androidx.ui.graphics)
-    api(libs.androidx.ui.tooling.preview)
+    iosArm64()
+    iosSimulatorArm64()
 
-    api(libs.coil.compose)
-    api(libs.coil.network.okhttp)
+    sourceSets {
+        commonMain.dependencies {
+            api(libs.compose.runtime)
+            api(libs.compose.foundation)
+            api(libs.compose.material3)
+            api(libs.compose.ui)
+            api(libs.compose.components.resources)
+            api(libs.compose.ui.tooling.preview)
+            api(libs.androidx.material.icons.extended.kmp)
+            api(libs.kmp.androidx.lifecycle.runtimeCompose)
+            api(libs.kmp.androidx.lifecycle.viewmodel)
+            api(libs.jetbrains.navigation3.ui)
+            api(libs.jetbrains.material3.adaptive)
+            api(libs.jetbrains.material3.adaptive.layout)
+            api(libs.jetbrains.material3.adaptive.navigation)
+            api(libs.coil.compose)
+        }
+
+        androidMain.dependencies {
+            api(libs.coil.network.okhttp)
+            api(libs.androidx.ui.tooling.preview)
+        }
+
+        iosMain.dependencies {
+            implementation(libs.coil.network.ktor3)
+            implementation(libs.ktor.client.darwin)
+        }
+    }
 }

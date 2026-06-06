@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+
+# Xcode build outputs
+build/
+DerivedData/
+Archives/
+*.xcarchive
+*.xcresult
+
+# Generated KMP/iOS binaries. The app builds ASShared from Gradle at Xcode build time.
+*.framework
+*.xcframework
+
+# Swift Package Manager local build output
+.build/

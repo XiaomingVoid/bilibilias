@@ -1,0 +1,203 @@
+package com.imcys.bilibilias.shared.ui.component
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material3.Button
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import bilibilias.shared.generated.resources.Res
+import bilibilias.shared.generated.resources.error_message_format
+import com.imcys.bilibilias.network.ApiStatus
+import com.imcys.bilibilias.network.NetWorkResult
+import com.imcys.bilibilias.network.model.BiliApiResponse
+import com.imcys.bilibilias.shared.platform.clipboard.setClipboardText
+import com.imcys.bilibilias.ui.component.ASIconButton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+
+private enum class AsAutoErrorContentSlot {
+    Success,
+    Loading,
+    Default,
+    Error
+}
+
+@Composable
+fun <T> AsAutoError(
+    netWorkResult: NetWorkResult<T>,
+    onLoadingContent: (@Composable () -> Unit)? = null,
+    onDefaultContent: (@Composable () -> Unit)? = onLoadingContent,
+    onSuccessContent: @Composable () -> Unit = {},
+    onErrorContent: (@Composable (errorMsg: String?, response: BiliApiResponse<T?>?) -> Unit)? = null,
+    onRetry: (() -> Unit)? = null,
+) {
+    val targetSlot = when (netWorkResult.status) {
+        ApiStatus.SUCCESS -> AsAutoErrorContentSlot.Success
+        ApiStatus.ERROR -> AsAutoErrorContentSlot.Error
+        ApiStatus.LOADING ->
+            if (onLoadingContent != null) AsAutoErrorContentSlot.Loading else AsAutoErrorContentSlot.Success
+
+        ApiStatus.DEFAULT ->
+            when {
+                onDefaultContent != null -> AsAutoErrorContentSlot.Default
+                onLoadingContent != null -> AsAutoErrorContentSlot.Loading
+                else -> AsAutoErrorContentSlot.Success
+            }
+    }
+
+    AnimatedContent(
+    targetState = targetSlot,
+    transitionSpec = {
+        fadeIn(
+            animationSpec = tween(durationMillis = 300)
+        ) togetherWith fadeOut(
+            animationSpec = tween(durationMillis = 300)
+        )
+    },
+) { targetContentSlot ->
+    when (targetContentSlot) {
+        AsAutoErrorContentSlot.Success -> onSuccessContent()
+        AsAutoErrorContentSlot.Loading -> onLoadingContent?.invoke() ?: onSuccessContent()
+        AsAutoErrorContentSlot.Default -> onDefaultContent?.invoke() ?: onSuccessContent()
+        AsAutoErrorContentSlot.Error -> onErrorContent?.invoke(
+            netWorkResult.errorMsg,
+            netWorkResult.responseData
+        ) ?: CommonError(
+            netWorkResult.errorMsg ?: "",
+            onRetry
+        )
+    }
+}
+}
+
+
+@Composable
+@Preview
+private fun PreviewCommonError() {
+    CommonError("接口异常") { }
+}
+
+@Composable
+fun CommonError(errorMsg: String, onRetry: (() -> Unit)?) {
+    val haptics = LocalHapticFeedback.current
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = CardDefaults.shape,
+            color = MaterialTheme.colorScheme.errorContainer
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    Modifier
+                        .sizeIn(maxHeight = 100.dp)
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Text(stringResource(Res.string.error_message_format, errorMsg))
+                }
+                AsErrorCopyIconButton(errorMsg)
+            }
+        }
+
+        Spacer(Modifier.height(5.dp))
+
+        if (onRetry != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+
+                Button(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    shape = CardDefaults.shape,
+                    onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        onRetry.invoke()
+                    },
+                ) {
+                    Text("点击重试")
+                }
+
+            }
+        }
+
+    }
+
+}
+
+@Composable
+fun AsErrorCopyIconButton(errorMsg: String) {
+    val clipboardManager = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+
+    var copyFinish by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (copyFinish) 360f else 0f,
+        animationSpec = tween(durationMillis = 300)
+    )
+    ASIconButton(onClick = {
+        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+        coroutineScope.launch(Dispatchers.IO) {
+            copyFinish = true
+            setClipboardText(errorMsg)
+            delay(2000)
+            copyFinish = false
+        }
+    }) {
+        Icon(
+            imageVector = if (copyFinish) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
+            contentDescription = "复制报错",
+            modifier = Modifier.rotate(rotation)
+        )
+    }
+}

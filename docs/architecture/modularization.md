@@ -11,6 +11,7 @@ BILIBILIAS 使用 Gradle 多 module。根 `settings.gradle.kts` 当前包含：
 :core:data
 :core:network
 :core:datastore-proto
+:shared
 ```
 
 当前 FFmpeg 能力由 `app` 直接依赖第三方库 `com.moizhassan.ffmpeg:ffmpeg-kit-16kb` 提供。
@@ -26,10 +27,48 @@ BILIBILIAS 使用 Gradle 多 module。根 `settings.gradle.kts` 当前包含：
 | `:core:common` | 通用事件、BuildConfig 运行时桥接、工具类、基础异常、跨 module 公共类型 |
 | `:core:network` | Ktor client、API service、网络 model、网络插件、B 站签名/token 工具 |
 | `:core:database` | Room 3 database、DAO、entity、converter、schema |
-| `:core:datastore` | App/User/Google Play 设置 DataStore source 与 serializer |
-| `:core:datastore-proto` | protobuf schema 与生成代码 |
+| `:core:datastore` | App/User/Google Play 设置 DataStore source、Okio serializer 与 Koin 注入 |
+| `:core:datastore-proto` | Wire protobuf schema、生成代码与兼容扩展 |
 | `:core:data` | repository、UI 可消费的 data model、数据源编排 |
+| `:shared` | Kotlin Multiplatform 共享层，承载跨 Android/iOS 的 app 壳层、Navigation 3 页面、平台桥接、下载运行时抽象和业务 UI |
 | `build-logic` | Gradle convention plugins、Kotlin/Android 公共构建配置、点击埋点字节码插桩、百度 jar 下载 |
+
+## `:shared` 包结构
+
+`:shared` 是当前跨端页面和平台能力的主要承载模块。它依赖 `:core:data`、`:core:common`、`:core:ui`，并导出 `:core:data` 以供 iOS framework 使用。
+
+当前主要包结构：
+
+| Package | 职责 |
+| --- | --- |
+| `shared.app` | 共享 app 入口和顶层 Compose 容器 |
+| `shared.di` | shared 层 Koin module |
+| `shared.navigation` | Navigation 3 顶层导航、route 注册和 back stack 处理 |
+| `shared.feature.*` | 业务页面，按 feature 组织 Screen、ViewModel、navigation 和局部 components |
+| `shared.ui.component` | BILIBILIAS 业务组件，例如下载卡片、分集选择、登录平台筛选、存储环、用户/稿件展示 |
+| `shared.ui.model` | shared UI 层使用的展示 model |
+| `shared.platform.*` | 平台能力 expect/actual 与平台组件封装 |
+| `shared.download.*` | shared 下载相关 model、命名、运行时和格式转换工具 |
+| `shared.util` | 仍依赖 shared 平台或业务上下文的工具 |
+
+`shared.platform` 继续按能力拆分：
+
+- `clipboard`：剪贴板桥接。
+- `device`：设备信息。
+- `firebase`：Firebase 相关平台入口。
+- `permission`：权限请求和授权状态。
+- `runtime`：运行时平台信息、Android Koin application 入口、下载运行时平台能力。
+- `storage`：文件系统、文件打开、存储平台能力。
+- `component`：需要平台实现的 Compose 组件，例如 WebView、BackHandler、HTMLText。
+
+`shared.download` 继续按下载链路职责拆分：
+
+- `model`：下载任务和本地媒体/字幕相关 model。
+- `naming`：命名规则处理。
+- `runtime`：跨端下载执行器和运行时管理。
+- `util`：弹幕、字幕等格式转换工具。
+
+新增 shared 代码时，优先按“页面 feature、平台能力、下载链路、业务 UI”四类归位。不要把纯公共 Compose 组件继续放入 `shared.ui.component`；脱离业务语义后仍可复用的组件应放到 `:core:ui`。
 
 ## 暂退模块与保留代码
 
@@ -43,8 +82,14 @@ BILIBILIAS 使用 Gradle 多 module。根 `settings.gradle.kts` 当前包含：
 
 ```text
 :app
+  -> :shared
   -> :core:common
   -> :core:data
+
+:shared
+  -> :core:data
+  -> :core:common
+  -> :core:ui
 
 :core:data
   -> :core:common
@@ -92,4 +137,6 @@ Android/Kotlin 公共配置在 `com/imcys/bilibilias/buildlogic/KotlinAndroid.kt
 - 新增持久化实体：放 `core:database`，同步维护 schema。
 - 新增设置项：先改 `core:datastore-proto` proto，再改 serializer/source/repository/UI。
 - 新增业务聚合：优先放 `core:data` repository。
-- 新增完整 feature：若代码规模较大，可考虑新增 feature module；当前仓库尚未拆 feature module，所以小改动先放 `:app` 对应 `ui/*` 包。
+- 新增跨端页面或 shared 业务页面：按 `shared.feature.<feature>` 组织。
+- 新增 Android-only 入口能力：放 `:app`，不要反向污染 shared。
+- 新增完整 feature module：当前仓库尚未拆独立 feature module；如果后续要拆，应先明确它和 `:shared` 的边界。

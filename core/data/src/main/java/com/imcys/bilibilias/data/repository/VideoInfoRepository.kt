@@ -3,7 +3,7 @@ package com.imcys.bilibilias.data.repository
 import com.imcys.bilibilias.database.dao.BILIUserCookiesDao
 import com.imcys.bilibilias.database.dao.BILIUsersDao
 import com.imcys.bilibilias.database.entity.LoginPlatform
-import com.imcys.bilibilias.datastore.AppSettings
+import com.imcys.bilibilias.datastore.*
 import com.imcys.bilibilias.datastore.source.UsersDataSource
 import com.imcys.bilibilias.network.ApiStatus
 import com.imcys.bilibilias.network.FlowNetWorkResult
@@ -14,9 +14,11 @@ import com.imcys.bilibilias.network.model.video.BILIDonghuaOgvPlayerInfo
 import com.imcys.bilibilias.network.model.video.BILIDonghuaPlayerInfo
 import com.imcys.bilibilias.network.model.video.BILIDonghuaPlayerSynthesize
 import com.imcys.bilibilias.network.model.video.BILIDonghuaSeasonInfo
+import com.imcys.bilibilias.network.model.video.BILIVideoViewInfo
 import com.imcys.bilibilias.network.model.video.BILIVideoPlayerInfo
 import com.imcys.bilibilias.network.service.BILIBILITVAPIService
 import com.imcys.bilibilias.network.service.BILIBILIWebAPIService
+import com.rickclephas.kmp.nativecoroutines.NativeCoroutines
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flowOf
@@ -33,10 +35,12 @@ class VideoInfoRepository(
     private val appSettingsRepository: AppSettingsRepository,
 ) {
 
+    @NativeCoroutines
     suspend fun getVideoView(
         bvId: String? = null,
         aid: String? = null,
-    ) = webApiService.getVideoView(bvId, aid)
+    ): FlowNetWorkResult<BILIVideoViewInfo> =
+        webApiService.getVideoView(bvId, aid)
 
     suspend fun shortLink(
         url: String
@@ -58,8 +62,7 @@ class VideoInfoRepository(
             .firstOrNull { cookie -> cookie.name == "bili_jct" }?.value
         return when (platformType) {
             AppSettings.VideoParsePlatform.Web,
-            AppSettings.VideoParsePlatform.Mobile,
-            AppSettings.VideoParsePlatform.UNRECOGNIZED -> {
+            AppSettings.VideoParsePlatform.Mobile -> {
                 webApiService.getDonghuaOgvPlayerInfo(epId, seasonId, qn = qn, fnval = fnval, csrf = cookieCsrf)
                     .flatMapConcat { ogvInfoResult ->
                         val check =
@@ -189,7 +192,6 @@ class VideoInfoRepository(
         val tryLook = if (usersDataSource.isLogin()) null else "1"
         return when (platformType) {
             AppSettings.VideoParsePlatform.Mobile,
-            AppSettings.VideoParsePlatform.UNRECOGNIZED,
             AppSettings.VideoParsePlatform.Web -> {
                 webApiService.getVideoPlayerInfo(
                     cid,

@@ -17,6 +17,7 @@ import com.imcys.bilibilias.database.entity.download.DownloadTaskNode
 import com.imcys.bilibilias.database.entity.download.DownloadTaskNodeType
 import com.imcys.bilibilias.database.entity.download.DownloadTaskType
 import com.imcys.bilibilias.database.entity.download.NamingConventionInfo
+import com.imcys.bilibilias.database.currentTimeMillis
 import com.imcys.bilibilias.datastore.source.UsersDataSource
 import com.imcys.bilibilias.network.ApiStatus
 import com.imcys.bilibilias.network.FlowNetWorkResult
@@ -27,7 +28,6 @@ import com.imcys.bilibilias.network.model.video.filterWithSinglePage
 import com.imcys.bilibilias.network.service.AppAPIService
 import kotlinx.coroutines.flow.last
 import kotlinx.serialization.json.Json
-import java.util.Date
 import kotlin.text.ifEmpty
 
 class DownloadTaskRepository(
@@ -302,7 +302,7 @@ class DownloadTaskRepository(
         cover: String,
         type: DownloadTaskType
     ): DownloadTask {
-        return downloadTaskDao.getTaskByPlatformId(platformId)?.copy(updateTime = Date())?.also {
+        return downloadTaskDao.getTaskByPlatformId(platformId)?.copy(updateTime = currentTimeMillis())?.also {
             downloadTaskDao.updateTask(it)
         } ?: DownloadTask(
             title = title,
@@ -773,7 +773,7 @@ class DownloadTaskRepository(
         parentNodeId: Long? = null
     ): DownloadTaskNode {
         return downloadTaskDao.getTaskNodeByTaskIdAndPlatformId(taskId, platformId)?.copy(
-            updateTime = Date()
+            updateTime = currentTimeMillis()
         )?.also {
             downloadTaskDao.updateNode(it)
         } ?: DownloadTaskNode(
@@ -813,7 +813,7 @@ class DownloadTaskRepository(
             segmentOrder = segmentOrder,
             platformUniqueId = platformUniqueId,
             platformInfo = platformInfo,
-            updateTime = Date(),
+            updateTime = currentTimeMillis(),
             downloadMode = downloadMode,
             taskId = childTaskId,  // 更新子任务关联
             namingConventionInfo = mNamingConventionInfo,

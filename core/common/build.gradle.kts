@@ -1,19 +1,26 @@
 plugins {
-    alias(libs.plugins.bilibilias.android.library)
-    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.bilibilias.multiplatform.library)
+    alias(libs.plugins.bilibilias.multiplatform.koin)
     alias(libs.plugins.kotlin.plugin.serialization)
 }
 
-android {
-    namespace = "com.imcys.bilibilias.common"
-    defaultConfig {
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+kotlin {
+    android {
+        namespace = "com.imcys.bilibilias.common"
     }
-}
 
-dependencies {
-    api(project(":core:ui"))
-    api(libs.androidx.core.ktx)
-    api(libs.androidx.lifecycle.runtime.ktx)
-    testImplementation(libs.junit4)
+    iosArm64()
+    iosSimulatorArm64()
+    jvm()
+
+    sourceSets {
+        commonMain.dependencies {
+            api(libs.kotlinx.serialization.json)
+            api(libs.kotlinx.coroutines.core)
+        }
+        androidMain.dependencies {
+            api(libs.androidx.core.ktx)
+            api(libs.androidx.lifecycle.runtime.ktx)
+        }
+    }
 }

@@ -34,8 +34,8 @@ import com.imcys.bilibilias.common.update.GooglePlayAppUpdateManage
 import com.imcys.bilibilias.common.utils.Manufacturers.XIAOMI
 import com.imcys.bilibilias.common.utils.createDownloadNotificationChannel
 import com.imcys.bilibilias.data.repository.AppSettingsRepository
-import com.imcys.bilibilias.datastore.AppSettings
-import com.imcys.bilibilias.ui.BILIBILIASAppScreen
+import com.imcys.bilibilias.datastore.*
+import com.imcys.bilibilias.shared.app.BILIBILIASAppScreen
 import com.imcys.bilibilias.ui.theme.BILIBILIASTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -47,12 +47,13 @@ import com.baidu.mobstat.StatService
 import com.imcys.bilibilias.common.data.CommonBuildConfig
 import com.imcys.bilibilias.common.event.restoreBackStack
 import com.imcys.bilibilias.common.event.sendNavigatePageEvent
-import com.imcys.bilibilias.common.utils.firebase.FirebaseExt.logShareParse
 import com.imcys.bilibilias.common.utils.analyticsSafe
 import com.imcys.bilibilias.common.utils.baiduAnalyticsSafe
-import com.imcys.bilibilias.ui.analysis.navigation.AnalysisRoute
-import com.imcys.bilibilias.ui.login.navigation.QRCodeLoginRoute
-import com.imcys.bilibilias.ui.weight.ASTextButton
+import com.imcys.bilibilias.shared.feature.analysis.navigation.AnalysisRoute
+import com.imcys.bilibilias.shared.feature.login.navigation.QRCodeLoginRoute
+import com.imcys.bilibilias.ui.component.ASTextButton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 
 class MainActivity : ComponentActivity() {
     private val appSettingsRepository: AppSettingsRepository by inject()
@@ -169,7 +170,6 @@ class MainActivity : ComponentActivity() {
         when (action) {
             Intent.ACTION_SEND -> {
                 if (type?.startsWith("text/") == true) {
-                    logShareParse()
                     val sharedText = incoming.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
                     sendAnalysisEvent(AnalysisEvent(analysisText = sharedText))
                 }

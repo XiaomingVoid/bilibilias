@@ -1,0 +1,191 @@
+package com.imcys.bilibilias.shared.feature.setting.layout
+
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Menu
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.NavKey
+import com.imcys.bilibilias.data.repository.getDescription
+import com.imcys.bilibilias.datastore.*
+import com.imcys.bilibilias.ui.component.ASIconButton
+import com.imcys.bilibilias.ui.component.ASTopAppBar
+import com.imcys.bilibilias.ui.component.AsBackIconButton
+import com.imcys.bilibilias.ui.component.BILIBILIASTopAppBarStyle
+import com.imcys.bilibilias.ui.component.ASAnimatedContent
+import com.imcys.bilibilias.ui.component.maybeNestedScroll
+import com.imcys.bilibilias.ui.component.reorderable.ItemPosition
+import com.imcys.bilibilias.ui.component.reorderable.ReorderableItem
+import com.imcys.bilibilias.ui.component.reorderable.detectReorderAfterLongPress
+import com.imcys.bilibilias.ui.component.reorderable.rememberReorderableLazyListState
+import com.imcys.bilibilias.ui.component.reorderable.reorderable
+import kotlinx.serialization.Serializable
+import org.koin.compose.viewmodel.koinViewModel
+
+
+@Serializable
+object LayoutTypesetRoute : NavKey
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LayoutTypesetScreen(layoutTypesetRoute: LayoutTypesetRoute, onToBack: () -> Unit) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val vm = koinViewModel<LayoutTypesetViewModel>()
+    val homeLayoutList by vm.homeLayoutTypesetList.collectAsStateWithLifecycle()
+    LayoutTypesetScaffold(
+        scrollBehavior = scrollBehavior,
+        onToBack = onToBack
+    ) {
+        LayoutTypesetContent(
+            modifier = Modifier
+                .maybeNestedScroll(scrollBehavior)
+                .padding(it),
+            homeLayoutList, onMove = { from, to ->
+                vm.moveLayoutItem(from.index, to.index)
+            },
+            onToggleHidden = { item, hidden ->
+                vm.setLayoutItemHidden(item, hidden)
+            }
+        )
+    }
+}
+
+@Composable
+fun LayoutTypesetContent(
+    modifier: Modifier = Modifier,
+    homeLayoutList: List<AppSettings.HomeLayoutItem>,
+    onMove: (ItemPosition, ItemPosition) -> Unit,
+    onToggleHidden: (AppSettings.HomeLayoutItem, Boolean) -> Unit,
+) {
+    val state = rememberReorderableLazyListState(onMove = { from, to ->
+        onMove(from, to)
+    })
+    val haptics = LocalHapticFeedback.current
+
+    LazyColumn(
+        state = state.listState,
+        modifier = modifier
+            .padding(vertical = 5.dp, horizontal = 10.dp)
+            .reorderable(state)
+            .detectReorderAfterLongPress(state),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(homeLayoutList, { it.type }) { item ->
+            ReorderableItem(state, key = item.type) { isDragging ->
+                val hasTriggered = remember { mutableStateOf(false) }
+
+                LaunchedEffect(isDragging) {
+                    if (isDragging && !hasTriggered.value) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        hasTriggered.value = true
+                    } else if (!isDragging) {
+                        // 重置状态，允许下次拖动再次触发
+                        hasTriggered.value = false
+                    }
+                }
+
+                val elevation = animateDpAsState(if (isDragging) 16.dp else 0.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(CardDefaults.shape)
+                        .shadow(elevation.value)
+                        .background(MaterialTheme.colorScheme.surface),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            item.type.getDescription(), modifier = Modifier,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        ASIconButton(onClick = {
+                            onToggleHidden(item, !item.isHidden)
+                        }) {
+                            Icon(
+                                if (item.isHidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                contentDescription = if (item.isHidden) "显示" else "隐藏",
+                            )
+                        }
+                        ASIconButton(onClick = {}) {
+                            Icon(Icons.Outlined.Menu, contentDescription = "长按拖拽")
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LayoutTypesetScaffold(
+    scrollBehavior: TopAppBarScrollBehavior,
+    onToBack: () -> Unit,
+    content: @Composable (PaddingValues) -> Unit
+) {
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        topBar = {
+            ASTopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                ),
+                scrollBehavior = scrollBehavior,
+                style = BILIBILIASTopAppBarStyle.Large,
+                title = { Text(text = "首页布局排版") },
+                navigationIcon = {
+                    AsBackIconButton(onClick = {
+                        onToBack.invoke()
+                    })
+                },
+                alwaysDisplay = false
+            )
+        },
+    ) {
+        content(it)
+    }
+
+}

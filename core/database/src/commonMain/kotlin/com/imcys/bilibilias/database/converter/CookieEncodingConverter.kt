@@ -1,0 +1,16 @@
+package com.imcys.bilibilias.database.converter
+
+import androidx.room3.TypeConverter
+import com.imcys.bilibilias.database.entity.ASSharedCookieEncoding
+
+class CookieEncodingConverter {
+    @TypeConverter
+    fun fromString(value: String?): ASSharedCookieEncoding? {
+        return value?.let { ASSharedCookieEncoding.valueOf(value) }
+    }
+
+    @TypeConverter
+    fun stringToCookieEncoding(cookieEncoding: ASSharedCookieEncoding?): String? {
+        return cookieEncoding?.name
+    }
+}

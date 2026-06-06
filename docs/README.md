@@ -19,6 +19,7 @@
 - `development/`：本地开发、构建、运行、配置开关和发布相关说明。
   - [构建与运行](./development/build-and-run.md)
   - [构建矩阵与开关组合](./development/build-matrix.md)
+  - [iOS 导入产物](./development/ios-artifacts.md)
 - `testing/`：测试策略、验证命令、质量约定和 schema 校验。
   - [测试与质量](./testing/testing.md)
 

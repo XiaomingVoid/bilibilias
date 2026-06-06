@@ -4,7 +4,7 @@
 
 ## 总览
 
-当前仓库并不是“每个页面自己存一点偏好”，而是由三份 protobuf 数据承载主要本地设置状态：
+当前仓库并不是“每个页面自己存一点偏好”，而是由三份 protobuf 数据承载主要本地设置状态。当前这套设置存储已经按 Kotlin Multiplatform 组织，使用 `androidx.datastore:datastore-core` / `datastore-core-okio` 负责存储，用 Wire 负责生成跨平台 protobuf Kotlin 类型。
 
 - `AppSettings`
   - 面向全局应用行为、UI 偏好、下载配置、导航恢复和隐私同意。
@@ -15,9 +15,9 @@
 
 proto 定义位于：
 
-- `core/datastore-proto/src/main/proto/com/imcys/bilibilias/datastore/settings.proto`
-- `core/datastore-proto/src/main/proto/com/imcys/bilibilias/datastore/user.proto`
-- `core/datastore-proto/src/main/proto/com/imcys/bilibilias/datastore/google_play.proto`
+- `core/datastore-proto/src/commonMain/proto/com/imcys/bilibilias/datastore/settings.proto`
+- `core/datastore-proto/src/commonMain/proto/com/imcys/bilibilias/datastore/user.proto`
+- `core/datastore-proto/src/commonMain/proto/com/imcys/bilibilias/datastore/google_play.proto`
 
 ## 分层职责
 
@@ -25,9 +25,10 @@ proto 定义位于：
 
 负责：
 
-- protobuf message 定义
+- Wire protobuf message 定义
 - 字段编号和向后兼容约束
-- 生成供上层使用的类型与 `copy {}` 扩展
+- 生成供上层使用的 Kotlin 类型
+- 通过 `WireCompat.kt` 提供旧 protobuf-lite 调用到 Wire API 的兼容扩展，例如 `toBuilder()`、`copy {}`、camelCase 访问器等
 
 任何新增设置项，第一步都应从 proto 开始，而不是先在 repository 或 UI 层“临时塞一个字段”。
 
@@ -36,9 +37,10 @@ proto 定义位于：
 负责：
 
 - `DataStore<T>` 实例定义
-- `Serializer` 实现
+- 基于 Okio 的 `Serializer` 实现
 - 读取旧数据时的默认值补齐和兼容修正
 - 更贴近存储层的 source
+- Android / iOS 各自的数据文件路径实现
 
 其中最关键的是 `AppSettingsSerializer`。它不仅负责序列化，还承担历史字段缺省值修复、非法值回填、默认容器格式兜底、并发下载配置修正等兼容逻辑。
 
@@ -118,6 +120,8 @@ proto 定义位于：
   - 公告忽略状态。
 - `unknown_app_sign_warning_close_time`
   - 签名告警关闭时间。
+- `package_source_warning_skip_key`
+  - 记录“此版本不再提示”的版本号 + git hash 组合 key。
 
 ## `User` 与 `GooglePlaySettings`
 

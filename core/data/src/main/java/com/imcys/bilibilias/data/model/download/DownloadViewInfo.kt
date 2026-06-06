@@ -7,7 +7,6 @@ import com.imcys.bilibilias.network.NetWorkResult
 import com.imcys.bilibilias.network.emptyNetWorkResult
 import com.imcys.bilibilias.network.model.video.BILIVideoLanguageItem
 import com.imcys.bilibilias.network.model.video.BILIVideoPlayerInfoV2
-import java.util.Locale.getDefault
 
 
 enum class CCFileType {
@@ -16,7 +15,7 @@ enum class CCFileType {
 }
 
 
-fun CCFileType.lowercase() = name.lowercase(getDefault())
+fun CCFileType.lowercase(): String = name.lowercase()
 
 
 data class MediaContainerConfig(

@@ -1,5 +1,6 @@
 package com.imcys.bilibilias.data.repository
 
+import com.imcys.bilibilias.database.currentTimeMillis
 import com.imcys.bilibilias.network.AsCookiesStorage
 import com.imcys.bilibilias.network.NetWorkResult
 import com.imcys.bilibilias.network.config.BILIBILI_URL
@@ -33,7 +34,7 @@ class RiskManagementRepository(
                             BILIBILI_URL, Cookie(
                                 name = BUVID3,
                                 value = it.data?.b3!!,
-                                expires = GMTDate(System.currentTimeMillis() + 86400 * 1000L),
+                                expires = GMTDate(currentTimeMillis() + 86400 * 1000L),
                                 path = "/"
                             )
                         )
@@ -41,7 +42,7 @@ class RiskManagementRepository(
                             BILIBILI_URL, Cookie(
                                 name = BUVID4,
                                 value = it.data?.b4!!,
-                                expires = GMTDate(System.currentTimeMillis() + 86400 * 1000L),
+                                expires = GMTDate(currentTimeMillis() + 86400 * 1000L),
                                 path = "/"
                             )
                         )

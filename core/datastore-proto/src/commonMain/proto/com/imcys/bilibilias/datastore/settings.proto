@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+option java_package = "com.imcys.bilibilias.datastore";
+option java_multiple_files = true;
+
+message AppSettings {
+  AgreePrivacyPolicyState agree_privacy_policy = 1;
+
+  KnowAboutApp know_about_app = 2;
+
+  bool enabled_roam = 3;
+
+  bool enabled_dynamic_color = 4;
+
+  message HomeLayoutItem {
+    HomeLayoutType type = 1;
+    bool is_hidden = 2;
+  }
+
+  repeated HomeLayoutItem home_layout_typeset = 5;
+
+  // 最后一次跳过更新的版本code
+  int32 last_skip_update_version_code = 6;
+  // 最后一次跳过的版本名称
+  string last_skip_update_version = 7;
+  // 最后一次记录不看的公告内容
+  string last_bulletin_content = 8;
+
+  string download_uri = 9;
+
+  EpisodeListMode episode_list_mode = 10;
+
+  // 视频命名规则
+  string video_naming_rule = 11;
+  // 番剧命名规则
+  string bangumi_naming_rule = 12;
+
+  // bilibili线路配置
+  string bili_line_host = 13;
+
+  // 使用过的工具记录
+  repeated string use_tool_history = 14;
+
+  // 启用剪贴板自动处理
+  optional bool enabled_clipboard_auto_handling = 15;
+
+  // 视频解析平台
+  optional VideoParsePlatform video_parse_platform = 16;
+
+
+  enum VideoParsePlatform{
+    // Web
+    Web = 0;
+    // TV
+    TV = 1;
+    // 手机
+    Mobile = 2;
+  }
+
+
+  enum EpisodeListMode{
+    EpisodeListMode_Grid = 0;
+    EpisodeListMode_List = 1;
+  }
+
+  enum HomeLayoutType {
+    Banner = 0 ;
+    Announcement = 1 ;
+    UpdateInfo = 2;
+    Tools = 3 ;
+    DownloadList = 4;
+  }
+
+  enum KnowAboutApp{
+    NotKnow = 0;
+    Know = 1;
+  }
+
+  enum AgreePrivacyPolicyState {
+    Default = 0;
+    NotAgreed = 1;
+    Agreed = 2;
+    Refuse = 3;
+  }
+
+  // 下载完成列表排序方式
+  DownloadSortType download_sort_type = 17;
+
+  enum DownloadSortType {
+    DownloadSort_TimeDesc = 0;  // 时间降序（默认）
+    DownloadSort_TimeAsc = 1;   // 时间升序
+    DownloadSort_TitleAsc = 2;  // 标题 A→Z
+    DownloadSort_TitleDesc = 3; // 标题 Z→A
+    DownloadSort_SizeDesc = 4;  // 文件大小降序
+    DownloadSort_SizeAsc = 5;   // 文件大小升序
+  }
+
+  string use_video_container = 18;
+  string use_audio_container = 19;
+  string nav_back_stack = 20;
+  int64 unknown_app_sign_warning_close_time = 21;
+
+  // 最大并行下载数
+  int32 max_concurrent_downloads = 22;
+
+  // 开启后按并发下载数设置 FFmpeg 并发合并，否则固定为 1
+  bool enabled_concurrent_merge = 23;
+  // 启用预测性返回手势
+  optional bool enabled_nav_on_back_invoked_callback = 24;
+  // 启用导航动画
+  optional bool enabled_nav_animation = 25;
+  // 安装包来源风险提示：此版本不再提示的 key（版本号+git hash）
+  string package_source_warning_skip_key = 26;
+}

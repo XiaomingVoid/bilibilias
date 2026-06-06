@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>CADisableMinimumFrameDurationOnPhone</key>
+        <true/>
+        <key>LSApplicationQueriesSchemes</key>
+        <array>
+            <string>bilibili</string>
+        </array>
+        <key>NSPhotoLibraryAddUsageDescription</key>
+        <string>用于保存二维码和视频封面到相册</string>
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>用于保存二维码和视频封面到相册</string>
+    </dict>
+</plist>

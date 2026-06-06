@@ -1,55 +1,25 @@
 package com.imcys.bilibilias.di
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.core.DataStoreFactory
-import androidx.datastore.dataStoreFile
 import com.imcys.bilibilias.agent.functions.BILIAnalysisAppFunctions
-import com.imcys.bilibilias.common.shizuku.ShizukuStateManager
 import com.imcys.bilibilias.common.utils.firebase.FirebaseNetworkPerformanceTracer
-import com.imcys.bilibilias.datastore.AppSettings
-import com.imcys.bilibilias.datastore.AppSettingsSerializer
 import com.imcys.bilibilias.download.DownloadExecutor
-import com.imcys.bilibilias.download.DownloadManager
 import com.imcys.bilibilias.download.FfmpegMerger
 import com.imcys.bilibilias.download.FileOutputManager
-import com.imcys.bilibilias.download.NamingConventionHandler
+import com.imcys.bilibilias.shared.download.naming.NamingConventionHandler
 import com.imcys.bilibilias.download.NewDownloadManager
+import com.imcys.bilibilias.shared.download.runtime.SharedDownloadExecutor
+import com.imcys.bilibilias.shared.download.runtime.SharedDownloadManager
 import com.imcys.bilibilias.download.SubtitleDownloader
 import com.imcys.bilibilias.download.VideoInfoFetcher
-import com.imcys.bilibilias.ui.BILIBILIASAppViewModel
-import com.imcys.bilibilias.ui.analysis.AnalysisViewModel
-import com.imcys.bilibilias.ui.download.DownloadViewModel
-import com.imcys.bilibilias.ui.event.playvoucher.PlayVoucherErrorViewModel
-import com.imcys.bilibilias.ui.event.requestFrequent.RequestFrequentViewModel
-import com.imcys.bilibilias.ui.home.HomeViewModel
-import com.imcys.bilibilias.ui.login.CookieLoginViewModel
-import com.imcys.bilibilias.ui.login.QRCodeLoginViewModel
-import com.imcys.bilibilias.ui.setting.SettingViewModel
-import com.imcys.bilibilias.ui.setting.contract.NamingConventionViewModel
-import com.imcys.bilibilias.ui.setting.developer.LineConfigViewModel
-import com.imcys.bilibilias.ui.setting.download.DownloadConfigViewModel
-import com.imcys.bilibilias.ui.setting.layout.LayoutTypesetViewModel
-import com.imcys.bilibilias.ui.setting.platform.ParsePlatformViewModel
-import com.imcys.bilibilias.ui.setting.roam.RoamViewModel
-import com.imcys.bilibilias.ui.setting.storage.StorageManagementViewModel
-import com.imcys.bilibilias.ui.tools.calendar.CalendarViewModel
-import com.imcys.bilibilias.ui.tools.calendar.detail.SubjectDetailViewModel
-import com.imcys.bilibilias.ui.tools.donate.DonateViewModel
-import com.imcys.bilibilias.ui.tools.export.ExportViewModel
-import com.imcys.bilibilias.ui.tools.frame.FrameExtractorViewModel
-import com.imcys.bilibilias.ui.tools.parser.WebParserViewModel
-import com.imcys.bilibilias.ui.user.UserViewModel
-import com.imcys.bilibilias.ui.user.bangumifollow.BangumiFollowViewModel
-import com.imcys.bilibilias.ui.user.folder.UserFolderViewModel
-import com.imcys.bilibilias.ui.user.history.UserPlayHistoryViewModel
-import com.imcys.bilibilias.ui.user.like.LikeVideoViewModel
-import com.imcys.bilibilias.ui.user.work.WorkListViewModel
+import com.imcys.bilibilias.network.config.BILIBILI_URL
+import com.imcys.bilibilias.network.config.REFERER
 import com.imcys.bilibilias.network.plugin.NetworkPerformanceTracer
+import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
-import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import java.util.concurrent.TimeUnit
 
 
 val appModule = module {
@@ -58,62 +28,30 @@ val appModule = module {
     single<NetworkPerformanceTracer> {
         FirebaseNetworkPerformanceTracer()
     }
-    single<DataStore<AppSettings>> {
-        DataStoreFactory.create(AppSettingsSerializer) {
-            androidContext().dataStoreFile("app_setting.pb")
-        }
+    single {
+        OkHttpClient.Builder()
+            .pingInterval(1, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .apply {
+                        if (chain.request().headers("Referer").isEmpty()) {
+                            header(REFERER, BILIBILI_URL)
+                        }
+                    }
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
     }
-    viewModelOf(::HomeViewModel)
-    viewModelOf(::QRCodeLoginViewModel)
-    viewModelOf(::BILIBILIASAppViewModel)
-    viewModelOf(::UserViewModel)
-    viewModelOf(::AnalysisViewModel)
-    viewModelOf(::DownloadViewModel)
-    viewModelOf(::PlayVoucherErrorViewModel)
-    viewModelOf(::RoamViewModel)
-    viewModelOf(::WorkListViewModel)
-    viewModelOf(::BangumiFollowViewModel)
-    viewModelOf(::UserFolderViewModel)
-    viewModelOf(::LikeVideoViewModel)
-    viewModelOf(::SettingViewModel)
-    viewModelOf(::LayoutTypesetViewModel)
-    viewModelOf(::UserPlayHistoryViewModel)
-    viewModelOf(::FrameExtractorViewModel)
-    viewModelOf(::CookieLoginViewModel)
-    viewModelOf(::DonateViewModel)
-    viewModelOf(::StorageManagementViewModel)
-    viewModelOf(::NamingConventionViewModel)
-    viewModelOf(::RequestFrequentViewModel)
-    viewModelOf(::LineConfigViewModel)
-    viewModelOf(::DownloadConfigViewModel)
-    viewModelOf(::WebParserViewModel)
-    viewModelOf(::ParsePlatformViewModel)
-    viewModelOf(::CalendarViewModel)
-    viewModelOf(::SubjectDetailViewModel)
-    viewModelOf(::ExportViewModel)
-
-    single { ShizukuStateManager(androidContext()) }
     single { VideoInfoFetcher(get(), get(), get()) }
     single { FileOutputManager(androidApplication()) }
-    single { DownloadExecutor(get(qualifier = named("DownloadHttpClient")), get()) }
     single { FfmpegMerger(androidApplication(), get()) }
     single { NamingConventionHandler(get()) }
     single { SubtitleDownloader(get(), get(), androidApplication()) }
-
-    single {
-        DownloadManager(
-            context = androidApplication(),
-            downloadTaskRepository = get(),
-            videoInfoRepository = get(),
-            appAPIService = get(),
-            json = get(),
-            okHttpClient = get(),
-            httpClient = get(qualifier = named("DownloadHttpClient")),
-            appSettingsRepository = get(),
-        )
+    single<SharedDownloadExecutor> {
+        DownloadExecutor(get(qualifier = named("DownloadHttpClient")), get())
     }
-
-    single {
+    single <SharedDownloadManager>{
         NewDownloadManager(
             context = androidApplication(),
             downloadTaskRepository = get(),

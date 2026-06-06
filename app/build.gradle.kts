@@ -30,8 +30,8 @@ android {
 
     defaultConfig {
         applicationId = "com.imcys.bilibilias"
-        versionCode = 316
-        versionName = "3.1.6"
+        versionCode = 320
+        versionName = "320"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["BAIDU_STAT_ID"] = baiduStatId
         buildConfigField("String", "BAIDU_STAT_ID", """"$baiduStatId"""".trimIndent())
@@ -42,6 +42,11 @@ android {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
         }
     }
+
+    lint {
+        disable += "Instantiatable"
+    }
+
     signingConfigs {
         create("BILIBILIASSigningConfig") {
             enableV3Signing = true
@@ -92,7 +97,6 @@ android {
             buildConfigField("boolean", "ENABLED_PLAY_APP_MODE", enabledPlayAppMode)
             signingConfig = signingConfigs.getByName("BILIBILIASSigningConfig")
             resValue("string", "app_channel", "Beta")
-
         }
     }
 
@@ -144,23 +148,14 @@ if (!enabledPlayAppMode.toBoolean() && enabledAnalytics.toBoolean()) {
 }
 
 dependencies {
-    implementation(project(":core:common"))
-    implementation(project(":core:data"))
+    implementation(project(":shared"))
 
+    implementation(libs.androidx.activity.compose)
     implementation(libs.ffmpeg.kit.x6kb)
 
     // Firebase 选配
     firebaseDependencies(enabledAnalytics.toBoolean())
 
-    // 彩带
-    implementation(libs.konfetti.compose)
-    // 高斯模糊
-    implementation(libs.compose.cloudy)
-
-    // 分页
-    implementation(libs.paging.compose)
-
-    implementation(libs.device.compat)
     implementation(libs.androidx.documentfile)
 
     // Google Play 选配
@@ -169,25 +164,16 @@ dependencies {
     // 百度统计
     baiduStatDependencies()
 
-    // Shizuku
-    implementation(libs.shizuku.api)
-    implementation(libs.shizuku.provider)
-
     // Native MCP
     implementation(libs.appfunctions)
     implementation(libs.appfunctions.service)
     ksp(libs.appfunctions.compiler)
-
-    // xposed
-    //    compileOnly(libs.xposed.api)
-
 
     // 预览工具
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-
 
 }
 
@@ -206,8 +192,8 @@ fun DependencyHandlerScope.baiduStatDependencies() {
 // Google Play 依赖配置
 fun DependencyHandlerScope.googlePlayDependencies(enabled: Boolean) {
     val googlePlayLibs = listOf(
-        libs.play.app.update.kts,
-        libs.play.app.review.kts
+        libs.play.app.update.ktx,
+        libs.play.app.review.ktx
     )
     googlePlayLibs.forEach {
         if (enabled) {

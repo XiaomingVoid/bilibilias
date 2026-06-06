@@ -2,6 +2,7 @@
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.compose.multiplatform) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.ksp) apply false
@@ -10,5 +11,11 @@ plugins {
     alias(libs.plugins.firebase.crashlytics) apply false
     alias(libs.plugins.firebase.perf) apply false
     alias(libs.plugins.kotlin.plugin.serialization) apply false
+    alias(libs.plugins.kotlin.multiplatform) apply false
+    alias(libs.plugins.android.multiplatform.library) apply false
+    alias(libs.plugins.androidx.room3) apply false
+    alias(libs.plugins.wire) apply false
+    alias(libs.plugins.kmp.nativecoroutines) apply false
+    alias(libs.plugins.buildconfig) apply false
 
 }

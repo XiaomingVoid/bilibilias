@@ -1,41 +1,39 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
+
 plugins {
-    alias(libs.plugins.bilibilias.jvm.library)
-    alias(libs.plugins.protobuf)
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.wire)
 }
 
-protobuf {
-    protoc {
-        artifact = libs.protobuf.protoc.get().toString()
+kotlin {
+    val iosXcframework = XCFramework("ASCoreDatastoreProto")
+
+    jvm {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
     }
-    generateProtoTasks {
-        all().configureEach {
-            builtins {
-                named("java") {
-                    option("lite")
-                }
-                register("kotlin") {
-                    option("lite")
-                }
-            }
+    iosArm64 {
+        binaries.framework("ASCoreDatastoreProto") {
+            isStatic = true
+            iosXcframework.add(this)
+        }
+    }
+    iosSimulatorArm64 {
+        binaries.framework("ASCoreDatastoreProto") {
+            isStatic = true
+            iosXcframework.add(this)
+        }
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            api(libs.wire.runtime)
         }
     }
 }
-sourceSets {
-    main {
-        java {
-            srcDir(provider { layout.buildDirectory.get().asFile.resolve("generated/source/proto/main/java") })
-            srcDir(provider { layout.buildDirectory.get().asFile.resolve("generated/source/proto/main/kotlin") })
-        }
-    }
-}
-tasks.withType<ProcessResources>().configureEach {
-    exclude("**/*.proto")
-}
-
-tasks.withType<Jar>().configureEach {
-    exclude("**/*.proto")
-}
-
-dependencies {
-    api(libs.protobuf.kotlin.lite)
+// Proto
+wire {
+    kotlin {}
 }
