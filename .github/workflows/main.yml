@@ -1,153 +1,110 @@
-name: Build and Upload Compose APK
+name: Android Build & Release (Official)
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
+    tags:
+      - 'v*' # 当推送到以 v 开头的标签（如 v1.0.0）时触发
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
+          java-version: "21"
           distribution: zulu
-          java-version: '21'
           cache: gradle
 
-      # 使用该 Action 自带缓存；不要再叠加 actions/cache，避免 400 报错
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      # 在构建前 clean 一次即可；不要在构建后再 clean
-      - name: Clean
-        run: ./gradlew clean
-
-      # PR 只需验证构建成功，使用 assembleAlphaDebug
-      - name: Build APK for PR (Debug)
-        if: github.event_name == 'pull_request'
-        run: ./gradlew :app:assembleAlphaDebug --stacktrace --info
-
-      # push 到 main 或手动触发时才打包 Release 版本
-      - name: Assemble alphaRelease
-        if: github.event_name != 'pull_request'
-        run: ./gradlew :app:assembleAlphaRelease --stacktrace --info
+      # 构建 APK (Official Release版本)
+      - name: Build Official Release APK
+        run: ./gradlew :app:assembleOfficialRelease --stacktrace --info
         env:
-          GRADLE_OPTS: "-Xmx2048m"
+          GRADLE_OPTS: "-Xmx3072m -XX:MaxMetaspaceSize=1g -Dorg.gradle.jvmargs=-Xmx3072m"
 
-      # === 列出构建产物 ===
-      - name: List APK outputs
-        if: always()
+      # === 验证并统计 APK 产物 ===
+      - name: Verify and Collect APKs
+        id: apk-check
         run: |
-          echo "=== Outputs under app/build/outputs/apk/alpha/release ==="
-          ls -lh app/build/outputs/apk/alpha/release/ || true
-          echo ""
-          echo "=== All APK files ==="
-          find app/build/outputs/apk -name "*.apk" -type f || true
-
-      # === 验证 APK 是否存在 ===
-      - name: Verify APK files
-        if: github.event_name != 'pull_request'
-        id: verify
-        run: |
-          UNIVERSAL_COUNT=$(find app/build/outputs/apk/alpha/release -name "*universal*.apk" -type f | wc -l)
-          ARM64_COUNT=$(find app/build/outputs/apk/alpha/release -name "*arm64-v8a*.apk" -type f | wc -l)
-          ARMV7_COUNT=$(find app/build/outputs/apk/alpha/release -name "*armeabi-v7a*.apk" -type f | wc -l)
-          X86_64_COUNT=$(find app/build/outputs/apk/alpha/release -name "*x86_64*.apk" -type f | wc -l)
-          
-          echo "universal_count=$UNIVERSAL_COUNT" >> $GITHUB_OUTPUT
-          echo "arm64_count=$ARM64_COUNT" >> $GITHUB_OUTPUT
-          echo "armv7_count=$ARMV7_COUNT" >> $GITHUB_OUTPUT
-          echo "x86_64_count=$X86_64_COUNT" >> $GITHUB_OUTPUT
-          
-          TOTAL=$((UNIVERSAL_COUNT + ARM64_COUNT + ARMV7_COUNT + X86_64_COUNT))
-          echo "total_count=$TOTAL" >> $GITHUB_OUTPUT
-          
-          if [ $TOTAL -eq 0 ]; then
-            echo "❌ 错误：未找到任何 APK 文件"
+          APK_DIR="app/build/outputs/apk/official/release"
+          if [ ! -d "$APK_DIR" ] || [ -z "$(ls -A $APK_DIR/*.apk 2>/dev/null)" ]; then
+            echo "❌ 错误：未找到 official/release APK 文件"
             exit 1
           fi
           
-          echo "✅ APK 验证成功："
-          echo "  Universal: $UNIVERSAL_COUNT"
-          echo "  ARM64-v8a: $ARM64_COUNT"
-          echo "  ARMv7: $ARMV7_COUNT"
-          echo "  x86_64: $X86_64_COUNT"
-          echo "  总计: $TOTAL"
+          APK_COUNT=$(find "$APK_DIR" -name "*.apk" -type f | wc -l)
+          echo "apk_count=$APK_COUNT" >> $GITHUB_OUTPUT
+          echo "✅ 找到 $APK_COUNT 个官方版本 APK 文件："
+          ls -lh "$APK_DIR"/*.apk
+          
+          # 提取简要输出供 Release Notes 使用
+          echo "apk_list<<EOF" >> $GITHUB_OUTPUT
+          find "$APK_DIR" -name "*.apk" -type f -exec basename {} \; | sed 's/^/- /' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-      # === 上传通用 APK（包含所有 ABI） ===
-      - name: Upload Universal APK
-        if: github.event_name != 'pull_request' && steps.verify.outputs.universal_count > 0
-        uses: actions/upload-artifact@v4
-        with:
-          name: APK-alpha-universal
-          path: app/build/outputs/apk/alpha/release/*universal*.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      # === 上传 arm64-v8a APK ===
-      - name: Upload arm64-v8a APK
-        if: github.event_name != 'pull_request' && steps.verify.outputs.arm64_count > 0
-        uses: actions/upload-artifact@v4
-        with:
-          name: APK-alpha-arm64-v8a
-          path: app/build/outputs/apk/alpha/release/*arm64-v8a*.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      # === 上传 armeabi-v7a APK ===
-      - name: Upload armeabi-v7a APK
-        if: github.event_name != 'pull_request' && steps.verify.outputs.armv7_count > 0
-        uses: actions/upload-artifact@v4
-        with:
-          name: APK-alpha-armeabi-v7a
-          path: app/build/outputs/apk/alpha/release/*armeabi-v7a*.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      # === 上传 x86_64 APK ===
-      - name: Upload x86_64 APK
-        if: github.event_name != 'pull_request' && steps.verify.outputs.x86_64_count > 0
-        uses: actions/upload-artifact@v4
-        with:
-          name: APK-alpha-x86_64
-          path: app/build/outputs/apk/alpha/release/*x86_64*.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      # === 汇总通知 ===
-      - name: Build Summary
-        if: always()
+      # === 获取提交与标签信息 ===
+      - name: Get Ref and Commit Info
+        id: info
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            if [ "${{ github.event_name }}" == "pull_request" ]; then
-              echo "✅ PR 构建成功 - 验证编译通过"
-            else
-              echo "✅ Alpha 构建成功"
-              echo "📦 生成了 ${{ steps.verify.outputs.total_count }} 个 APK 文件"
-              echo ""
-              echo "📊 详细信息："
-              echo "  Universal: ${{ steps.verify.outputs.universal_count }}"
-              echo "  ARM64-v8a: ${{ steps.verify.outputs.arm64_count }}"
-              echo "  ARMv7: ${{ steps.verify.outputs.armv7_count }}"
-              echo "  x86_64: ${{ steps.verify.outputs.x86_64_count }}"
-            fi
-          else
-            echo "❌ 构建失败"
-            echo "Event: ${{ github.event_name }}"
-            echo "Ref: ${{ github.ref }}"
-          fi
+          echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "author=$(git log -1 --pretty=%an)" >> $GITHUB_OUTPUT
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          git log -1 --pretty=%B >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # === 上传 APK 到 GitHub Artifacts（备份归档 90天） ===
+      - name: Upload APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bilibilias-Official-${{ github.ref_name }}-${{ steps.info.outputs.short_sha }}
+          path: app/build/outputs/apk/official/release/*.apk
+          retention-days: 90
+          compression-level: 0
+
+      # === 自动创建 GitHub Release 并上传【所有】架构文件 ===
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          body: |
+            ## 📱 Official Release - ${{ github.ref_name }}
+
+            **Build Date**: ${{ steps.info.outputs.date }}
+            **Commit**: [${{ steps.info.outputs.short_sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            **Author**: ${{ steps.info.outputs.author }}
+
+            ### 📝 Commit Message
+            ```
+            ${{ steps.info.outputs.message }}
+            ```
+
+            ### 📦 Included APKs
+            ${{ steps.apk-check.outputs.apk_list }}
+
+            ### 🔗 Resources
+            - [Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            ---
+            *Automatically built and released via GitHub Actions*
+          draft: false
+          prerelease: false
+          files: app/build/outputs/apk/official/release/*.apk  # 此处修复：上传通配符下的所有架构 APK
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
